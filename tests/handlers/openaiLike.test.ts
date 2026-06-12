@@ -12,6 +12,7 @@ const mockConfig: OpenAILikeConfig = {
   baseUrl: 'https://test-provider.ai/v1',
   apiKeyEnv: 'TEST_PROVIDER_API_KEY',
 };
+const PREFIX = 'test/';
 
 describe('createOpenAILikeHandler', () => {
   beforeEach(() => {
@@ -19,9 +20,9 @@ describe('createOpenAILikeHandler', () => {
     delete process.env.TEST_PROVIDER_API_KEY;
   });
 
-  it('should call OpenAIHandler with baseUrl and apiKey from env var', async () => {
+  it('should strip prefix and call OpenAIHandler with baseUrl and apiKey from env var', async () => {
     process.env.TEST_PROVIDER_API_KEY = 'env-key-123';
-    const handler = createOpenAILikeHandler(mockConfig);
+    const handler = createOpenAILikeHandler(PREFIX, mockConfig);
 
     await handler({
       model: 'test/model-v1',
@@ -31,16 +32,30 @@ describe('createOpenAILikeHandler', () => {
     expect(OpenAIHandler).toHaveBeenCalledTimes(1);
     expect(OpenAIHandler).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: 'test/model-v1',
+        model: 'model-v1',
         baseUrl: 'https://test-provider.ai/v1',
         apiKey: 'env-key-123',
       }),
     );
   });
 
+  it('should pass model as-is if prefix does not match', async () => {
+    process.env.TEST_PROVIDER_API_KEY = 'key';
+    const handler = createOpenAILikeHandler(PREFIX, mockConfig);
+
+    await handler({
+      model: 'other/model',
+      messages: [],
+    });
+
+    expect(OpenAIHandler).toHaveBeenCalledWith(
+      expect.objectContaining({ model: 'other/model' }),
+    );
+  });
+
   it('should prefer explicit apiKey over env var', async () => {
     process.env.TEST_PROVIDER_API_KEY = 'wrong-key';
-    const handler = createOpenAILikeHandler(mockConfig);
+    const handler = createOpenAILikeHandler(PREFIX, mockConfig);
 
     await handler({
       model: 'test/model',
@@ -54,7 +69,7 @@ describe('createOpenAILikeHandler', () => {
   });
 
   it('should throw if no API key is available', async () => {
-    const handler = createOpenAILikeHandler(mockConfig);
+    const handler = createOpenAILikeHandler(PREFIX, mockConfig);
 
     await expect(
       handler({ model: 'test/model', messages: [] }),
@@ -63,7 +78,7 @@ describe('createOpenAILikeHandler', () => {
 
   it('should pass streaming param to OpenAIHandler', async () => {
     process.env.TEST_PROVIDER_API_KEY = 'key';
-    const handler = createOpenAILikeHandler(mockConfig);
+    const handler = createOpenAILikeHandler(PREFIX, mockConfig);
 
     await handler({
       model: 'test/model',
@@ -78,7 +93,7 @@ describe('createOpenAILikeHandler', () => {
 
   it('should pass all extra params to OpenAIHandler', async () => {
     process.env.TEST_PROVIDER_API_KEY = 'key';
-    const handler = createOpenAILikeHandler(mockConfig);
+    const handler = createOpenAILikeHandler(PREFIX, mockConfig);
 
     await handler({
       model: 'test/model',
@@ -90,6 +105,7 @@ describe('createOpenAILikeHandler', () => {
 
     expect(OpenAIHandler).toHaveBeenCalledWith(
       expect.objectContaining({
+        model: 'model',
         temperature: 0.7,
         max_tokens: 100,
         top_p: 0.9,
@@ -110,7 +126,7 @@ describe('createOpenAILikeHandler', () => {
       ],
     };
     (OpenAIHandler as jest.Mock).mockResolvedValueOnce(expectedResult);
-    const handler = createOpenAILikeHandler(mockConfig);
+    const handler = createOpenAILikeHandler(PREFIX, mockConfig);
 
     const result = await handler({
       model: 'test/model',

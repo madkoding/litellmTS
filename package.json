@@ -40,7 +40,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.1",
-    "@google/generative-ai": "^0.24.1",
+    "@google/genai": "^2.8.0",
     "cohere-ai": "^8.0.0",
     "eventsource": "^4.1.0",
     "js-tiktoken": "^1.0.21",

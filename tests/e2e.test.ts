@@ -11,10 +11,10 @@ describe('e2e', () => {
   describe('completion', () => {
     it.each`
       model
-      ${'gpt-4o-mini'}
-      ${'claude-3-haiku-20240307'}
-      ${'command-nightly'}
-      ${'j2-light'}
+      ${'openai/gpt-4o-mini'}
+      ${'anthropic/claude-3-haiku-20240307'}
+      ${'cohere/command-nightly'}
+      ${'ai21/j2-light'}
       ${'ollama/llama2'}
       ${'gemini/gemini-2.0-flash'}
       ${'mistral/mistral-tiny'}
@@ -38,9 +38,9 @@ describe('e2e', () => {
 
     it.each`
       model
-      ${'gpt-4o-mini'}
-      ${'claude-3-haiku-20240307'}
-      ${'command-nightly'}
+      ${'openai/gpt-4o-mini'}
+      ${'anthropic/claude-3-haiku-20240307'}
+      ${'cohere/command-nightly'}
       ${'gemini/gemini-2.0-flash'}
       ${'mistral/mistral-tiny'}
       ${'deepinfra/mistralai/Mistral-7B-Instruct-v0.1'}
@@ -76,7 +76,7 @@ describe('e2e', () => {
   describe('embedding', () => {
     it.each`
       model
-      ${'text-embedding-ada-002'}
+      ${'openai/text-embedding-ada-002'}
       ${'ollama/llama2'}
       ${'mistral/mistral-embed'}
       ${'gemini/text-embedding-004'}

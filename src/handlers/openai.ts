@@ -10,6 +10,7 @@ import {
   ResultStreaming,
   ResultNotStreaming,
 } from '../types';
+import { registerModelProvider } from '../models/registry';
 
 function toOpenAIMessages(
   messages: HandlerParams['messages'],
@@ -49,6 +50,9 @@ export async function OpenAIHandler(
   } = params;
   const apiKey = providedApiKey ?? process.env.OPENAI_API_KEY;
   const baseUrl = providedBaseUrl ?? 'https://api.openai.com/v1';
+  const modelName = completionsParams.model.startsWith('openai/')
+    ? completionsParams.model.slice(7)
+    : completionsParams.model;
 
   const openai = new OpenAI({
     apiKey: apiKey,
@@ -62,6 +66,7 @@ export async function OpenAIHandler(
     try {
       response = await openai.chat.completions.create({
         ...completionsParams,
+        model: modelName,
         stream: true,
         messages,
       });
@@ -75,6 +80,7 @@ export async function OpenAIHandler(
   try {
     response = await openai.chat.completions.create({
       ...completionsParams,
+      model: modelName,
       stream: false,
       messages,
     });
@@ -106,6 +112,15 @@ export async function OpenAIHandler(
   return result;
 }
 
+registerModelProvider('openai', async ({ apiKey } = {}) => {
+  const key = apiKey ?? process.env.OPENAI_API_KEY;
+  if (!key) return [];
+  const res = await fetch('https://api.openai.com/v1/models', {
+    headers: { Authorization: `Bearer ${key}` },
+  });
+  const { data } = await res.json();
+  return data.map((m: any) => ({ id: m.id, provider: 'openai', created: m.created }));
+});
+
 import { registerCompletionHandler } from '../registry';
-registerCompletionHandler('gpt-', OpenAIHandler);
 registerCompletionHandler('openai/', OpenAIHandler);

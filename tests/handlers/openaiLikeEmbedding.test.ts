@@ -11,6 +11,7 @@ const mockConfig: OpenAILikeConfig = {
   baseUrl: 'https://test-embed.ai/v1',
   apiKeyEnv: 'TEST_EMBED_API_KEY',
 };
+const PREFIX = 'test-embed/';
 
 describe('createOpenAILikeEmbeddingHandler', () => {
   beforeEach(() => {
@@ -18,16 +19,16 @@ describe('createOpenAILikeEmbeddingHandler', () => {
     delete process.env.TEST_EMBED_API_KEY;
   });
 
-  it('should call OpenAIEmbeddingHandler with baseUrl and apiKey from env var', async () => {
+  it('should strip prefix and call OpenAIEmbeddingHandler with baseUrl and apiKey from env var', async () => {
     process.env.TEST_EMBED_API_KEY = 'env-embed-key';
-    const handler = createOpenAILikeEmbeddingHandler(mockConfig);
+    const handler = createOpenAILikeEmbeddingHandler(PREFIX, mockConfig);
 
-    await handler({ model: 'test-embed-model', input: 'hello world' });
+    await handler({ model: 'test-embed/model', input: 'hello world' });
 
     expect(OpenAIEmbeddingHandler).toHaveBeenCalledTimes(1);
     expect(OpenAIEmbeddingHandler).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: 'test-embed-model',
+        model: 'model',
         input: 'hello world',
         baseUrl: 'https://test-embed.ai/v1',
         apiKey: 'env-embed-key',
@@ -37,10 +38,10 @@ describe('createOpenAILikeEmbeddingHandler', () => {
 
   it('should prefer explicit apiKey over env var', async () => {
     process.env.TEST_EMBED_API_KEY = 'wrong-key';
-    const handler = createOpenAILikeEmbeddingHandler(mockConfig);
+    const handler = createOpenAILikeEmbeddingHandler(PREFIX, mockConfig);
 
     await handler({
-      model: 'test-embed-model',
+      model: 'test-embed/model',
       input: 'test',
       apiKey: 'correct-key',
     });
@@ -51,18 +52,18 @@ describe('createOpenAILikeEmbeddingHandler', () => {
   });
 
   it('should throw if no API key is available', async () => {
-    const handler = createOpenAILikeEmbeddingHandler(mockConfig);
+    const handler = createOpenAILikeEmbeddingHandler(PREFIX, mockConfig);
 
     await expect(
-      handler({ model: 'test-embed-model', input: 'test' }),
+      handler({ model: 'test-embed/model', input: 'test' }),
     ).rejects.toThrow('TestEmbedding requires an API key');
   });
 
   it('should pass input array to OpenAIEmbeddingHandler', async () => {
     process.env.TEST_EMBED_API_KEY = 'key';
-    const handler = createOpenAILikeEmbeddingHandler(mockConfig);
+    const handler = createOpenAILikeEmbeddingHandler(PREFIX, mockConfig);
 
-    await handler({ model: 'test-embed-model', input: ['a', 'b', 'c'] });
+    await handler({ model: 'test-embed/model', input: ['a', 'b', 'c'] });
 
     expect(OpenAIEmbeddingHandler).toHaveBeenCalledWith(
       expect.objectContaining({ input: ['a', 'b', 'c'] }),
@@ -78,9 +79,9 @@ describe('createOpenAILikeEmbeddingHandler', () => {
     (OpenAIEmbeddingHandler as jest.Mock).mockResolvedValueOnce(
       expectedResult,
     );
-    const handler = createOpenAILikeEmbeddingHandler(mockConfig);
+    const handler = createOpenAILikeEmbeddingHandler(PREFIX, mockConfig);
 
-    const result = await handler({ model: 'test-embed-model', input: 'x' });
+    const result = await handler({ model: 'test-embed/model', input: 'x' });
 
     expect(result).toBe(expectedResult);
   });

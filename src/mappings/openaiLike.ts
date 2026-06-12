@@ -80,11 +80,6 @@ export const OPENAI_LIKE_MAPPINGS: Record<string, OpenAILikeConfig> = {
     baseUrl: 'https://integrate.api.nvidia.com/v1',
     apiKeyEnv: 'NVIDIA_API_KEY',
   },
-  'ai21/': {
-    name: 'AI21 Labs',
-    baseUrl: 'https://api.ai21.com/studio/v1',
-    apiKeyEnv: 'AI21_API_KEY',
-  },
   'codestral/': {
     name: 'Codestral',
     baseUrl: 'https://codestral.mistral.ai/v1',

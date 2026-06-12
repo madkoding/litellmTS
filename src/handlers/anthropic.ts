@@ -1,137 +1,28 @@
 import Anthropic from '@anthropic-ai/sdk';
 
+import type { HandlerParams, ResultNotStreaming, ResultStreaming } from '../types';
 import {
-  HandlerParams,
-  ResultStreaming,
-  ResultNotStreaming,
-  Message,
-  FinishReason,
-} from '../types';
-import { getUnixTimestamp } from '../utils/getUnixTimestamp';
+  toAnthropicMessages,
+  toAnthropicResponse,
+  toAnthropicStreamingResponse,
+} from '../utils/anthropic';
 import { getAnthropicKey } from '../auth';
-
-function toMessages(input: Message[]): { system: string | undefined; messages: Anthropic.MessageParam[] } {
-  let system: string | undefined;
-  const messages: Anthropic.MessageParam[] = [];
-
-  for (const msg of input) {
-    if (msg.role === 'system') {
-      system = (system ? system + '\n' : '') + (msg.content ?? '');
-      continue;
-    }
-    if (msg.role === 'user' || msg.role === 'assistant') {
-      messages.push({
-        role: msg.role,
-        content: msg.content ?? '',
-      });
-    }
-  }
-
-  return { system, messages };
-}
-
-function toFinishReason(reason: Anthropic.StopReason | null | undefined): FinishReason {
-  if (reason === 'max_tokens') {
-    return 'length';
-  }
-
-  return 'stop';
-}
-
-function getTextContent(content: Anthropic.ContentBlock[]): string {
-  return content
-    .filter((block): block is Anthropic.TextBlock => block.type === 'text')
-    .map((block) => block.text)
-    .join('');
-}
-
-function toResponse(
-  message: Anthropic.Message,
-): ResultNotStreaming {
-  return {
-    model: message.model,
-    created: getUnixTimestamp(),
-    usage: {
-      prompt_tokens: message.usage.input_tokens,
-      completion_tokens: message.usage.output_tokens,
-      total_tokens: message.usage.input_tokens + message.usage.output_tokens,
-    },
-    choices: [
-      {
-        message: {
-          content: getTextContent(message.content),
-          role: 'assistant',
-        },
-        finish_reason: toFinishReason(message.stop_reason),
-        index: 0,
-      },
-    ],
-  };
-}
-
-async function* toStreamingResponse(
-  stream: AsyncIterable<Anthropic.RawMessageStreamEvent>,
-): ResultStreaming {
-  let model = '';
-  let stopReason: Anthropic.StopReason | null | undefined;
-
-  for await (const event of stream) {
-    switch (event.type) {
-      case 'message_start':
-        model = event.message.model;
-        stopReason = event.message.stop_reason;
-        break;
-
-      case 'content_block_delta':
-        if (event.delta.type === 'text_delta') {
-          yield {
-            model,
-            created: getUnixTimestamp(),
-            choices: [
-              {
-                delta: { content: event.delta.text, role: 'assistant' },
-                finish_reason: null,
-                index: 0,
-              },
-            ],
-          };
-        }
-        break;
-
-      case 'message_delta':
-        stopReason = event.delta.stop_reason;
-        break;
-
-      case 'message_stop':
-        yield {
-          model,
-          created: getUnixTimestamp(),
-          choices: [
-            {
-              delta: { content: '', role: 'assistant' },
-              finish_reason: toFinishReason(stopReason),
-              index: 0,
-            },
-          ],
-        };
-        break;
-    }
-  }
-}
+import { registerModelProvider } from '../models/registry';
 
 export async function AnthropicHandler(
   params: HandlerParams,
 ): Promise<ResultNotStreaming | ResultStreaming> {
   const apiKey = params.apiKey ?? process.env.ANTHROPIC_API_KEY ?? (await getAnthropicKey());
+  const modelName = params.model.startsWith('anthropic/')
+    ? params.model.slice(10)
+    : params.model;
 
-  const anthropic = new Anthropic({
-    apiKey: apiKey,
-  });
+  const anthropic = new Anthropic({ apiKey });
 
-  const { system, messages } = toMessages(params.messages);
+  const { system, messages } = toAnthropicMessages(params.messages);
 
   const anthropicParams: Anthropic.MessageCreateParams = {
-    model: params.model,
+    model: modelName,
     max_tokens: params.max_tokens ?? 300,
     messages,
     ...(system ? { system } : {}),
@@ -143,16 +34,25 @@ export async function AnthropicHandler(
         ...anthropicParams,
         stream: true,
       });
-      return toStreamingResponse(stream);
+      return toAnthropicStreamingResponse(stream);
     }
 
     const message = await anthropic.messages.create(anthropicParams);
-
-    return toResponse(message);
+    return toAnthropicResponse(message);
   } catch (err) {
     throw new Error(`Anthropic API error: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
   }
 }
 
+registerModelProvider('anthropic', async ({ apiKey } = {}) => {
+  const key = apiKey ?? process.env.ANTHROPIC_API_KEY;
+  if (!key) return [];
+  const res = await fetch('https://api.anthropic.com/v1/models', {
+    headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+  });
+  const { data } = await res.json();
+  return data.map((m: any) => ({ id: m.id, provider: 'anthropic' }));
+});
+
 import { registerCompletionHandler } from '../registry';
-registerCompletionHandler('claude-', AnthropicHandler);
+registerCompletionHandler('anthropic/', AnthropicHandler);

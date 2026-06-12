@@ -24,7 +24,7 @@ describe('CohereHandler', () => {
 
   it('throws if no API key', async () => {
     await expect(
-      CohereHandler({ model: 'command', messages: [{ role: 'user', content: 'hi' }] }),
+      CohereHandler({ model: 'cohere/command', messages: [{ role: 'user', content: 'hi' }] }),
     ).rejects.toThrow('Cohere requires an API key');
   });
 
@@ -34,7 +34,7 @@ describe('CohereHandler', () => {
       mockChat.mockResolvedValueOnce(mockChatResponse);
 
       const result = await CohereHandler({
-        model: 'command',
+        model: 'cohere/command',
         messages: [{ role: 'user', content: 'hello' }],
         stream: false,
       });
@@ -73,7 +73,7 @@ describe('CohereHandler', () => {
       mockChatStream.mockResolvedValueOnce(fakeStream());
 
       const result = await CohereHandler({
-        model: 'command',
+        model: 'cohere/command',
         messages: [{ role: 'user', content: 'hello' }],
         stream: true,
       });

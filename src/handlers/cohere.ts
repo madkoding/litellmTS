@@ -7,6 +7,7 @@ import {
   Message,
 } from '../types';
 import { getUnixTimestamp } from '../utils/getUnixTimestamp';
+import { registerModelProvider } from '../models/registry';
 
 function toChatHistory(messages: Message[]): {
   message: string;
@@ -58,11 +59,15 @@ export async function CohereHandler(
   const apiKey = params.apiKey ?? process.env.COHERE_API_KEY;
   if (!apiKey) throw new Error('Cohere requires an API key. Set COHERE_API_KEY environment variable or pass apiKey in params.');
 
+  const modelName = params.model.startsWith('cohere/')
+    ? params.model.slice(7)
+    : params.model;
+
   const cohere = new CohereClient({ token: apiKey });
   const { message, chatHistory, preamble } = toChatHistory(params.messages);
 
   const chatParams: Cohere.ChatRequest = {
-    model: params.model,
+    model: modelName,
     message,
     ...(chatHistory ? { chatHistory } : {}),
     ...(preamble ? { preamble } : {}),
@@ -75,13 +80,13 @@ export async function CohereHandler(
       const stream = await cohere.chatStream({
         ...chatParams,
       });
-      return toStreamingResponse(stream, params.model);
+      return toStreamingResponse(stream, modelName);
     }
 
     const { text, finishReason, meta } = await cohere.chat(chatParams);
 
     return {
-      model: params.model,
+      model: modelName,
       created: getUnixTimestamp(),
       usage: meta?.tokens
         ? {
@@ -151,5 +156,16 @@ async function* toStreamingResponse(
   }
 }
 
+registerModelProvider('cohere', async ({ apiKey } = {}) => {
+  const key = apiKey ?? process.env.COHERE_API_KEY;
+  if (!key) return [];
+  const res = await fetch('https://api.cohere.com/v1/models', {
+    headers: { Authorization: `Bearer ${key}` },
+  });
+  if (!res.ok) return [];
+  const json = await res.json();
+  return (json.models ?? []).map((m: any) => ({ id: m.id, provider: 'cohere' }));
+});
+
 import { registerCompletionHandler } from '../registry';
-registerCompletionHandler('command', CohereHandler);
+registerCompletionHandler('cohere/', CohereHandler);

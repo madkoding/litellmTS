@@ -74,7 +74,7 @@ describe('litellm', () => {
 
     describe('non-streaming', () => {
       it('should call OpenAI SDK with correct params and return structured result', async () => {
-        const model = 'gpt-4-32k-0613';
+        const model = 'openai/gpt-4-32k-0613';
         const result = await completion({
           model,
           messages: [{ role: 'user', content: 'test' }],
@@ -83,7 +83,7 @@ describe('litellm', () => {
 
         expect(openAIMockCreate).toHaveBeenCalledTimes(1);
         expect(openAIMockCreate).toHaveBeenCalledWith(
-          expect.objectContaining({ model, stream: false }),
+          expect.objectContaining({ model: 'gpt-4-32k-0613', stream: false }),
         );
         expect(result).toMatchObject({
           model: 'gpt-3.5-turbo',
@@ -106,7 +106,7 @@ describe('litellm', () => {
 
     describe('streaming', () => {
       it('should call OpenAI SDK with stream:true and yield chunks', async () => {
-        const model = 'gpt-3.5-turbo';
+        const model = 'openai/gpt-3.5-turbo';
         const result = await completion({
           model,
           messages: [{ role: 'user', content: 'test' }],
@@ -115,7 +115,7 @@ describe('litellm', () => {
 
         expect(openAIMockCreate).toHaveBeenCalledTimes(1);
         expect(openAIMockCreate).toHaveBeenCalledWith(
-          expect.objectContaining({ model, stream: true }),
+          expect.objectContaining({ model: 'gpt-3.5-turbo', stream: true }),
         );
 
         const chunks: unknown[] = [];
@@ -141,7 +141,7 @@ describe('litellm', () => {
       delete process.env.GROQ_API_KEY;
     });
 
-    it('should route groq/ models through OpenAI SDK with correct baseUrl', async () => {
+    it('should route groq/ models through OpenAI SDK with correct baseUrl and stripped prefix', async () => {
       process.env.GROQ_API_KEY = 'groq-test-key';
       openAIMockCreate.mockClear();
 
@@ -153,7 +153,7 @@ describe('litellm', () => {
 
       expect(openAIMockCreate).toHaveBeenCalledTimes(1);
       expect(openAIMockCreate).toHaveBeenCalledWith(
-        expect.objectContaining({ model: 'groq/llama3-70b' }),
+        expect.objectContaining({ model: 'llama3-70b' }),
       );
     });
   });
@@ -171,7 +171,7 @@ describe('litellm', () => {
         usage: { input_tokens: 10, output_tokens: 5 },
       });
       const params: HandlerParams = {
-        model: 'claude-2',
+        model: 'anthropic/claude-2',
         messages: [
           {
             content: 'How are you',

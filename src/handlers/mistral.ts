@@ -83,5 +83,18 @@ export async function MistralHandler(
   return result;
 }
 
+import { registerModelProvider } from '../models/registry';
+
+registerModelProvider('mistral', async ({ apiKey } = {}) => {
+  const key = apiKey ?? process.env.MISTRAL_API_KEY;
+  if (!key) return [];
+  const res = await fetch('https://api.mistral.ai/v1/models', {
+    headers: { Authorization: `Bearer ${key}` },
+  });
+  if (!res.ok) return [];
+  const { data } = await res.json();
+  return (data ?? []).map((m: any) => ({ id: m.id, provider: 'mistral' }));
+});
+
 import { registerCompletionHandler } from '../registry';
 registerCompletionHandler('mistral/', MistralHandler);

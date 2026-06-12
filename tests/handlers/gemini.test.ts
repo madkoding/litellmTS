@@ -1,29 +1,27 @@
 const mockGenerateContent = jest.fn();
 const mockGenerateContentStream = jest.fn();
 
-jest.mock('@google/generative-ai', () => ({
-  GoogleGenerativeAI: jest.fn().mockImplementation(() => ({
-    getGenerativeModel: jest.fn().mockReturnValue({
+jest.mock('@google/genai', () => ({
+  GoogleGenAI: jest.fn().mockImplementation(() => ({
+    models: {
       generateContent: mockGenerateContent,
       generateContentStream: mockGenerateContentStream,
-    }),
+    },
   })),
 }));
 
 import { GeminiHandler } from '../../src/handlers/gemini';
 
-function createMockResponse(text: string, usage?: { promptTokenCount: number; candidatesTokenCount: number; totalTokenCount: number }) {
+function createMockResponse(text: string) {
   return {
-    response: {
-      candidates: [
-        {
-          index: 0,
-          finishReason: 'STOP',
-          content: { parts: [{ text }] },
-        },
-      ],
-      usageMetadata: usage ?? { promptTokenCount: 10, candidatesTokenCount: 5, totalTokenCount: 15 },
-    },
+    candidates: [
+      {
+        index: 0,
+        finishReason: 'STOP',
+        content: { parts: [{ text }] },
+      },
+    ],
+    usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 5, totalTokenCount: 15 },
   };
 }
 
@@ -64,11 +62,11 @@ describe('GeminiHandler', () => {
       process.env.GEMINI_API_KEY = 'test-key';
 
       async function* mockStream(): AsyncGenerator {
-        yield createMockResponse('Hello ').response;
-        yield createMockResponse('World!').response;
+        yield createMockResponse('Hello ');
+        yield createMockResponse('World!');
       }
 
-      mockGenerateContentStream.mockReturnValueOnce({ stream: mockStream() });
+      mockGenerateContentStream.mockResolvedValue(mockStream());
 
       const result = await GeminiHandler({
         model: 'gemini/gemini-pro',

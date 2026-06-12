@@ -42,7 +42,7 @@ npm install litellmts-core
 import { completion } from 'litellmts-core';
 
 const response = await completion({
-  model: 'gpt-4o-mini',
+  model: 'openai/gpt-4o-mini',
   messages: [{ role: 'user', content: 'Hello!' }],
 });
 
@@ -53,7 +53,7 @@ Swap providers by changing just the model string:
 
 ```ts
 // Same code, different provider:
-await completion({ model: 'claude-sonnet-4-20250514', ... });
+await completion({ model: 'anthropic/claude-sonnet-4-20250514', ... });
 await completion({ model: 'gemini/gemini-2.5-pro', ... });
 await completion({ model: 'groq/llama-3.3-70b', ... });
 await completion({ model: 'deepseek/deepseek-chat', ... });
@@ -63,6 +63,8 @@ await completion({ model: 'deepseek/deepseek-chat', ... });
 
 - **Unified API** — same `completion()` / `embedding()` for every provider
 - **Streaming** — all providers support `stream: true`
+- **Model listing** — `listModels('openai')` fetches available models from each provider's API
+- **Provider discovery** — `listProviders()` returns all configured providers
 - **TypeScript first** — full type safety with auto-completion
 - **45+ providers** — from OpenAI to niche OpenAI-compatible APIs
 - **No SDK sprawl** — one dependency replaces 10+ vendor SDKs
@@ -77,7 +79,7 @@ await completion({ model: 'deepseek/deepseek-chat', ... });
 import { completion } from 'litellmts-core';
 
 const response = await completion({
-  model: 'gpt-4o-mini',
+  model: 'openai/gpt-4o-mini',
   messages: [
     { role: 'system', content: 'You are a helpful assistant.' },
     { role: 'user', content: 'What is TypeScript?' },
@@ -96,7 +98,7 @@ console.log(response.usage);
 
 ```ts
 const stream = await completion({
-  model: 'claude-sonnet-4-20250514',
+  model: 'anthropic/claude-sonnet-4-20250514',
   messages: [{ role: 'user', content: 'Write a poem' }],
   stream: true,
 });
@@ -112,11 +114,31 @@ for await (const chunk of stream) {
 import { embedding } from 'litellmts-core';
 
 const result = await embedding({
-  model: 'text-embedding-3-small',
+  model: 'openai/text-embedding-3-small',
   input: 'Hello world',
 });
 
 console.log(result.data[0].embedding); // number[]
+```
+
+### Model Discovery
+
+```ts
+import { listModels, listProviders, clearModelCache } from 'litellmts-core';
+
+// List all available models for a provider (fetched live from their API)
+const models = await listModels('openai');
+// => [{ id: 'gpt-4o', provider: 'openai', created: 1700000000 }, ...]
+
+// List all configured providers
+const providers = listProviders();
+// => [{ name: 'openai', hasModelList: true }, { name: 'groq', hasModelList: true }, ...]
+
+// Get models for a specific provider with apiKey override
+const groqModels = await listModels('groq', { apiKey: 'gsk_...' });
+
+// Clear cached model lists (re-fetches on next call)
+clearModelCache();
 ```
 
 ### API Keys
@@ -153,17 +175,17 @@ npx litellm login anthropic
 
 ### Dedicated Handlers
 
-| Provider | Prefix | Completion | Streaming | Embedding | API Key Env |
-|---|---|---|---|---|---|
-| OpenAI | `gpt-*`, `openai/` | ✅ | ✅ | ✅ | `OPENAI_API_KEY` |
-| Anthropic | `claude-*` | ✅ | ✅ | ❌ | `ANTHROPIC_API_KEY` |
+| Provider | Model prefix | Completion | Streaming | Embedding | API Key Env |
+|---|---|---|---|---|---|---|
+| OpenAI | `openai/` | ✅ | ✅ | ✅ | `OPENAI_API_KEY` |
+| Anthropic | `anthropic/` | ✅ | ✅ | ❌ | `ANTHROPIC_API_KEY` |
 | Google Gemini | `gemini/` | ✅ | ✅ | ✅ | `GEMINI_API_KEY` |
 | GitHub Copilot | `copilot/` | ✅ | ✅ | ❌ | (OAuth) |
 | Mistral | `mistral/` | ✅ | ✅ | ✅ | `MISTRAL_API_KEY` |
-| Cohere | `command*` | ✅ | ✅ | ❌ | `COHERE_API_KEY` |
+| Cohere | `cohere/` | ✅ | ✅ | ❌ | `COHERE_API_KEY` |
 | DeepInfra | `deepinfra/` | ✅ | ✅ | ❌ | `DEEPINFRA_API_KEY` |
 | Replicate | `replicate/` | ✅ | ✅ | ❌ | `REPLICATE_API_KEY` |
-| AI21 Labs | `j2-*`, `ai21/` | ✅ | ✅ | ❌ | `AI21_API_KEY` |
+| AI21 Labs | `ai21/` | ✅ | ✅ | ❌ | `AI21_API_KEY` |
 | Ollama (local) | `ollama/` | ✅ | ✅ | ✅ | — |
 
 ### OpenAI-Compatible (38 providers)
@@ -213,16 +235,19 @@ npx litellm login anthropic
 ┌──────────────┐     ┌──────────────┐     ┌─────────────────┐
 │  completion() │────▶│  getHandler() │────▶│  OpenAIHandler   │
 │  embedding()  │     │  (prefix      │     │  AnthropicHandler│
-│               │     │   matching)   │     │  GeminiHandler   │
-│               │     │              │     │  OpenAILikeHandler│
+│  listModels() │     │   matching)   │     │  GeminiHandler   │
+│  listProviders│     │              │     │  OpenAILikeHandler│
 └──────────────┘     └──────────────┘     └─────────────────┘
                            │
-                    ┌──────┴──────┐
-                    │  Registry   │
-                    │  groq/ → .  │
-                    │  claude- →  │
-                    │  gpt- → ..  │
-                    └─────────────┘
+                    ┌──────┴──────┐       ┌──────────────────┐
+                    │  Registry   │       │  Model Registry  │
+                    │  openai/ →  │       │  (in-memory      │
+                    │  anthropic/ │       │   cache + TTL)   │
+                    │  groq/ → .. │       │                  │
+                    └─────────────┘       │  listModels()    │
+                                          │  listProviders() │
+                                          │  clearModelCache()│
+                                          └──────────────────┘
 ```
 
 ## Development

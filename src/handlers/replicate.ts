@@ -131,5 +131,18 @@ export async function ReplicateHandler(
   return handleNonStreamingPrediction(prompt, prediction, replicate, modelName);
 }
 
+import { registerModelProvider } from '../models/registry';
+
+registerModelProvider('replicate', async ({ apiKey } = {}) => {
+  const key = apiKey ?? process.env.REPLICATE_API_KEY;
+  if (!key) return [];
+  const res = await fetch('https://api.replicate.com/v1/models', {
+    headers: { Authorization: `Bearer ${key}` },
+  });
+  if (!res.ok) return [];
+  const { results } = await res.json();
+  return (results ?? []).map((m: any) => ({ id: `${m.owner}/${m.name}`, provider: 'replicate' }));
+});
+
 import { registerCompletionHandler } from '../registry';
 registerCompletionHandler('replicate/', ReplicateHandler);

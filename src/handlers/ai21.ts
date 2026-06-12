@@ -106,10 +106,12 @@ export async function AI21Handler(
   const baseUrl = params.baseUrl ?? 'https://api.ai21.com';
   const apiKey = params.apiKey ?? process.env.AI21_API_KEY;
   if (!apiKey) throw new Error('AI21 requires an API key. Set AI21_API_KEY environment variable or pass apiKey in params.');
-  const model = params.model;
+  const modelName = params.model.startsWith('ai21/')
+    ? params.model.slice(5)
+    : params.model;
   const prompt = combinePrompts(params.messages);
 
-  const res = await getAI21Response(model, prompt, baseUrl, apiKey, params.stream ?? false);
+  const res = await getAI21Response(modelName, prompt, baseUrl, apiKey, params.stream ?? false);
 
   if (!res.ok) {
     throw new Error(`Received an error with code ${res.status} from AI21 API.`);
@@ -119,7 +121,7 @@ export async function AI21Handler(
     return iterateSSEStream(res, (payload) => {
       const parsed = JSON.parse(payload) as AI21StreamChunk;
       return {
-        model,
+        model: modelName,
         created: getUnixTimestamp(),
         choices: [
           {
@@ -135,8 +137,8 @@ export async function AI21Handler(
   }
 
   const body = (await res.json()) as AI21Response;
-  return toResponse(body, model);
+  return toResponse(body, modelName);
 }
 
 import { registerCompletionHandler } from '../registry';
-registerCompletionHandler('j2-', AI21Handler);
+registerCompletionHandler('ai21/', AI21Handler);

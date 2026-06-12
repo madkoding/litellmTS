@@ -1,5 +1,6 @@
 const mockEmbeddingsCreate = jest.fn();
 const mockOpenAIConstructor = jest.fn();
+const mockGeminiEmbedContent = jest.fn();
 
 jest.mock('openai', () => {
   const MockOpenAI = function (...args: unknown[]) {
@@ -13,8 +14,15 @@ jest.mock('openai', () => {
   return MockOpenAI;
 });
 
+jest.mock('@google/genai', () => ({
+  GoogleGenAI: jest.fn().mockImplementation(() => ({
+    models: { embedContent: mockGeminiEmbedContent },
+  })),
+}));
+
 import { embedding } from '../src';
 import { OpenAIEmbeddingHandler } from '../src/handlers/openaiEmbedding';
+import { GeminiEmbeddingHandler } from '../src/handlers/geminiEmbedding';
 
 describe('embedding', () => {
   beforeEach(() => {
@@ -30,7 +38,7 @@ describe('embedding', () => {
       });
 
       const result = await OpenAIEmbeddingHandler({
-        model: 'text-embedding-ada-002',
+        model: 'openai/text-embedding-ada-002',
         input: 'hello world',
         apiKey: 'test-key',
       });
@@ -50,7 +58,7 @@ describe('embedding', () => {
       mockEmbeddingsCreate.mockResolvedValue({ data: [] });
 
       await OpenAIEmbeddingHandler({
-        model: 'text-embedding-ada-002',
+        model: 'openai/text-embedding-ada-002',
         input: 'test',
         apiKey: 'key',
         baseUrl: 'https://custom.proxy/v1',
@@ -65,7 +73,7 @@ describe('embedding', () => {
       mockEmbeddingsCreate.mockResolvedValue({ data: [] });
 
       await OpenAIEmbeddingHandler({
-        model: 'text-embedding-ada-002',
+        model: 'openai/text-embedding-ada-002',
         input: 'test',
         apiKey: 'my-secret-key',
         baseUrl: 'https://custom.proxy/v1',
@@ -81,7 +89,7 @@ describe('embedding', () => {
       mockEmbeddingsCreate.mockResolvedValue({ data: [] });
 
       await OpenAIEmbeddingHandler({
-        model: 'text-embedding-ada-002',
+        model: 'openai/text-embedding-ada-002',
         input: 'test',
       });
 
@@ -93,18 +101,20 @@ describe('embedding', () => {
   });
 
   describe('embedding() function routing', () => {
-    it('should route text-embedding- models to OpenAI', async () => {
+    it('should route openai/ models to OpenAI', async () => {
       mockEmbeddingsCreate.mockResolvedValueOnce({
         data: [{ embedding: [0.5, 0.5], index: 0 }],
         model: 'text-embedding-ada-002',
       });
 
       const result = await embedding({
-        model: 'text-embedding-ada-002',
+        model: 'openai/text-embedding-ada-002',
         input: 'test',
       });
 
-      expect(mockEmbeddingsCreate).toHaveBeenCalled();
+      expect(mockEmbeddingsCreate).toHaveBeenCalledWith(
+        expect.objectContaining({ model: 'text-embedding-ada-002' }),
+      );
       expect(result.data).toHaveLength(1);
     });
 
@@ -114,4 +124,39 @@ describe('embedding', () => {
       ).rejects.toThrow('not supported');
     });
   });
+
+  describe('GeminiEmbeddingHandler', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+      delete process.env.GEMINI_API_KEY;
+    });
+
+    it('should call embedContent with correct params', async () => {
+      mockGeminiEmbedContent.mockResolvedValueOnce({
+        embeddings: [{ values: [0.1, 0.2] }],
+      });
+
+      const result = await GeminiEmbeddingHandler({
+        model: 'gemini/text-embedding-004',
+        input: 'hello world',
+        apiKey: 'test-key',
+      });
+
+      expect(mockGeminiEmbedContent).toHaveBeenCalledWith({
+        model: 'text-embedding-004',
+        contents: [{ role: 'user', parts: [{ text: 'hello world' }] }],
+      });
+      expect(result).toMatchObject({
+        data: [{ embedding: [0.1, 0.2], index: 0 }],
+        model: 'text-embedding-004',
+      });
+    });
+
+    it('should throw if no API key', async () => {
+      await expect(
+        GeminiEmbeddingHandler({ model: 'gemini/text-embedding-004', input: 'test' }),
+      ).rejects.toThrow('Gemini requires an API key');
+    });
+  });
+
 });

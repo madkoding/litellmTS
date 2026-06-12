@@ -172,5 +172,9 @@ export async function CopilotHandler(
   return result;
 }
 
+import { registerModelProvider } from '../models/registry';
+
+registerModelProvider('copilot', async () => []);
+
 import { registerCompletionHandler } from '../registry';
 registerCompletionHandler('copilot/', CopilotHandler);

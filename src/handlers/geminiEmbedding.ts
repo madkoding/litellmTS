@@ -1,6 +1,6 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 
-import { EmbeddingParams, EmbeddingResponse } from '../types';
+import type { EmbeddingParams, EmbeddingResponse } from '../types';
 
 export async function GeminiEmbeddingHandler(
   params: EmbeddingParams,
@@ -11,23 +11,20 @@ export async function GeminiEmbeddingHandler(
     ? params.model.slice(7)
     : params.model;
 
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: modelName });
+  const client = new GoogleGenAI({ apiKey });
 
   const input = typeof params.input === 'string'
     ? params.input
     : params.input.join(' ');
 
-  const result = await model.embedContent({
-    content: {
-      role: 'user',
-      parts: [{ text: input }],
-    },
+  const result = await client.models.embedContent({
+    model: modelName,
+    contents: [{ role: 'user', parts: [{ text: input }] }],
   });
 
   return {
     model: modelName,
-    data: [{ embedding: result.embedding.values, index: 0 }],
+    data: [{ embedding: result.embeddings?.[0]?.values ?? [], index: 0 }],
   };
 }
 

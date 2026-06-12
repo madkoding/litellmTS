@@ -30,7 +30,7 @@ describe('AI21Handler', () => {
 
   it('throws if no API key', async () => {
     await expect(
-      AI21Handler({ model: 'j2-ultra', messages: [{ role: 'user', content: 'hi' }] }),
+      AI21Handler({ model: 'ai21/j2-ultra', messages: [{ role: 'user', content: 'hi' }] }),
     ).rejects.toThrow('AI21 requires an API key');
   });
 
@@ -40,10 +40,15 @@ describe('AI21Handler', () => {
       mockFetch.mockResolvedValueOnce(mockOkResponse(ai21Response));
 
       const result = await AI21Handler({
-        model: 'j2-ultra',
+        model: 'ai21/j2-ultra',
         messages: [{ role: 'user', content: 'hi' }],
         stream: false,
       });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('/studio/v1/j2-ultra/complete'),
+        expect.any(Object),
+      );
 
       expect(result).toMatchObject({
         model: 'j2-ultra',
@@ -66,7 +71,7 @@ describe('AI21Handler', () => {
       mockFetch.mockResolvedValueOnce({ ok: true, body: stream } as unknown as Response);
 
       const result = await AI21Handler({
-        model: 'j2-ultra',
+        model: 'ai21/j2-ultra',
         messages: [{ role: 'user', content: 'hi' }],
         stream: true,
       });
@@ -87,7 +92,7 @@ describe('AI21Handler', () => {
     mockFetch.mockResolvedValueOnce(mockErrorResponse(400));
 
     await expect(
-      AI21Handler({ model: 'j2-ultra', messages: [] }),
+      AI21Handler({ model: 'ai21/j2-ultra', messages: [] }),
     ).rejects.toThrow('Received an error with code 400 from AI21 API');
   });
 });

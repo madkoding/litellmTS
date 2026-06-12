@@ -1,101 +1,7 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import type {
-  Content,
-  Part,
-  GenerateContentResponse,
-} from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 
-import {
-  HandlerParams,
-  Message,
-  ResultNotStreaming,
-  ResultStreaming,
-  FinishReason,
-  type ConsistentResponseUsage,
-} from '../types';
-import { getUnixTimestamp } from '../utils/getUnixTimestamp';
-
-function toGeminiContent(messages: Message[]): Content[] {
-  return messages.map((msg) => {
-    const parts: Part[] = [];
-    if (msg.content) {
-      parts.push({ text: msg.content });
-    }
-    return {
-      role: msg.role === 'assistant' ? 'model' : msg.role,
-      parts,
-    };
-  });
-}
-
-function toFinishReason(reason: string | undefined | null): FinishReason {
-  switch (reason) {
-    case 'STOP':
-      return 'stop';
-    case 'MAX_TOKENS':
-      return 'length';
-    default:
-      return 'stop';
-  }
-}
-
-function toUsage(
-  meta: GenerateContentResponse['usageMetadata'],
-): ConsistentResponseUsage | undefined {
-  if (!meta) return undefined;
-  return {
-    prompt_tokens: meta.promptTokenCount,
-    completion_tokens: meta.candidatesTokenCount,
-    total_tokens: meta.totalTokenCount,
-  };
-}
-
-function toResponse(
-  response: GenerateContentResponse,
-  model: string,
-): ResultNotStreaming {
-  const candidate = response.candidates?.[0];
-  return {
-    model: model,
-    created: getUnixTimestamp(),
-    usage: toUsage(response.usageMetadata),
-    choices: [
-      {
-        index: candidate?.index ?? 0,
-        finish_reason: toFinishReason(candidate?.finishReason),
-        message: {
-          role: 'assistant',
-          content: candidate ? candidate.content.parts.map((p) => 'text' in p ? p.text : '').join('') : null,
-        },
-      },
-    ],
-  };
-}
-
-async function* toStreamingResponse(
-  stream: AsyncGenerator<GenerateContentResponse>,
-  model: string,
-): ResultStreaming {
-  for await (const chunk of stream) {
-    const candidate = chunk.candidates?.[0];
-    const deltaContent = candidate?.content.parts.map((p) => 'text' in p ? p.text : '').join('') ?? '';
-    yield {
-      model,
-      created: getUnixTimestamp(),
-      usage: toUsage(chunk.usageMetadata),
-      choices: [
-        {
-          index: candidate?.index ?? 0,
-          finish_reason: toFinishReason(candidate?.finishReason),
-          delta: {
-            content: deltaContent,
-            role: 'assistant',
-          },
-        },
-      ],
-    };
-  }
-}
+import type { HandlerParams, ResultNotStreaming, ResultStreaming } from '../types';
+import { toGeminiContent, toResponse, toStreamingResponse } from '../utils/gemini';
 
 export async function GeminiHandler(
   params: HandlerParams,
@@ -106,31 +12,54 @@ export async function GeminiHandler(
     ? params.model.slice(7)
     : params.model;
 
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({
-    model: modelName,
-    generationConfig: {
-      temperature: params.temperature ?? undefined,
-      topP: params.top_p ?? undefined,
-      maxOutputTokens: params.max_tokens ?? undefined,
-      stopSequences: params.stop ? (Array.isArray(params.stop) ? params.stop : [params.stop]) : undefined,
-    },
-  });
+  const client = new GoogleGenAI({ apiKey });
 
   const contents = toGeminiContent(params.messages);
 
   try {
     if (params.stream) {
-      const result = await model.generateContentStream({ contents });
-      return toStreamingResponse(result.stream, modelName);
+      const stream = await client.models.generateContentStream({
+        model: modelName,
+        contents,
+        config: {
+          temperature: params.temperature ?? undefined,
+          topP: params.top_p ?? undefined,
+          maxOutputTokens: params.max_tokens ?? undefined,
+          stopSequences: params.stop ? (Array.isArray(params.stop) ? params.stop : [params.stop]) : undefined,
+        },
+      });
+      return toStreamingResponse(stream, modelName);
     }
 
-    const result = await model.generateContent({ contents });
-    return toResponse(result.response, modelName);
+    const response = await client.models.generateContent({
+      model: modelName,
+      contents,
+      config: {
+        temperature: params.temperature ?? undefined,
+        topP: params.top_p ?? undefined,
+        maxOutputTokens: params.max_tokens ?? undefined,
+        stopSequences: params.stop ? (Array.isArray(params.stop) ? params.stop : [params.stop]) : undefined,
+      },
+    });
+    return toResponse(response, modelName);
   } catch (err) {
     throw new Error(`Gemini API error: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
   }
 }
+
+import { registerModelProvider } from '../models/registry';
+
+registerModelProvider('gemini', async ({ apiKey } = {}) => {
+  const key = apiKey ?? process.env.GEMINI_API_KEY;
+  if (!key) return [];
+  const client = new GoogleGenAI({ apiKey: key });
+  const pager = await client.models.list();
+  const models: { id: string; provider: string }[] = [];
+  for await (const m of pager) {
+    models.push({ id: (m as any).name ?? (m as any).displayName, provider: 'gemini' });
+  }
+  return models;
+});
 
 import { registerCompletionHandler } from '../registry';
 registerCompletionHandler('gemini/', GeminiHandler);

@@ -131,5 +131,14 @@ export async function OllamaHandler(
   return toResponse(message, model, prompt);
 }
 
+import { registerModelProvider } from '../models/registry';
+
+registerModelProvider('ollama', async () => {
+  const res = await fetch('http://127.0.0.1:11434/api/tags');
+  if (!res.ok) return [];
+  const { models } = await res.json();
+  return (models ?? []).map((m: any) => ({ id: m.name, provider: 'ollama' }));
+});
+
 import { registerCompletionHandler } from '../registry';
 registerCompletionHandler('ollama/', OllamaHandler);

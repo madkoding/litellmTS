@@ -6,17 +6,20 @@ export async function OpenAIEmbeddingHandler(
 ): Promise<EmbeddingResponse> {
   const apiKey = params.apiKey ?? process.env.OPENAI_API_KEY;
   const baseUrl = params.baseUrl;
+  const modelName = params.model.startsWith('openai/')
+    ? params.model.slice(7)
+    : params.model;
 
   const openai = new OpenAI({
     apiKey: apiKey,
     baseURL: baseUrl,
   });
   try {
-    return await openai.embeddings.create({ input: params.input, model: params.model });
+    return await openai.embeddings.create({ input: params.input, model: modelName });
   } catch (err) {
     throw new Error(`OpenAI embedding API error: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
   }
 }
 
 import { registerEmbeddingHandler } from '../registry';
-registerEmbeddingHandler('text-embedding-', OpenAIEmbeddingHandler);
+registerEmbeddingHandler('openai/', OpenAIEmbeddingHandler);

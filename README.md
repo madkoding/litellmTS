@@ -66,8 +66,8 @@ await completion({ model: 'deepseek/deepseek-chat', ... });
 - **TypeScript first** — full type safety with auto-completion
 - **45+ providers** — from OpenAI to niche OpenAI-compatible APIs
 - **No SDK sprawl** — one dependency replaces 10+ vendor SDKs
-- **CLI auth** — built-in OAuth device flow for GitHub Copilot
-- **Persistent auth store** — `~/.litellm/auth.json`
+- **CLI auth** — built-in OAuth device flow for GitHub Copilot & API key setup for Anthropic
+- **Encrypted auth store** — `~/.litellm/auth.json` protected with AES-256-GCM (key derived from machine + user)
 
 ## Usage
 

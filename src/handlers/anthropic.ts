@@ -13,13 +13,14 @@ import {
 import { combinePrompts } from '../utils/combinePrompts';
 import { getUnixTimestamp } from '../utils/getUnixTimestamp';
 import { toUsage } from '../utils/toUsage';
+import { getAnthropicKey } from '../auth';
 
 function toAnthropicPrompt(messages: Message[]): string {
   const textsCombined = combinePrompts(messages);
   return `${Anthropic.HUMAN_PROMPT} ${textsCombined}${Anthropic.AI_PROMPT}`;
 }
 
-function toFinishReson(string: string): FinishReason {
+function toFinishReson(string: string | null | undefined): FinishReason {
   if (string === 'max_tokens') {
     return 'length';
   }
@@ -87,7 +88,7 @@ export async function AnthropicHandler(
 export async function AnthropicHandler(
   params: HandlerParams,
 ): Promise<ResultNotStreaming | ResultStreaming> {
-  const apiKey = params.apiKey ?? process.env.ANTHROPIC_API_KEY;
+  const apiKey = params.apiKey ?? process.env.ANTHROPIC_API_KEY ?? (await getAnthropicKey());
 
   const anthropic = new Anthropic({
     apiKey: apiKey,

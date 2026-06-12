@@ -1,4 +1,4 @@
-import Replicate, { Prediction } from 'replicate';
+import Replicate, { type Prediction } from 'replicate';
 import EventSource from 'eventsource';
 
 import {
@@ -51,26 +51,22 @@ async function* handleStreamingPrediction(
   prediction: Prediction,
 ): ResultStreaming {
   if (!prediction?.urls?.stream) {
-    throw new Error();
+    throw new Error('Prediction does not support streaming');
   }
 
-  const source = new EventSource(prediction.urls.stream, {
+  const source = new EventSource(prediction.urls.stream as string, {
     withCredentials: true,
   });
 
   let results: string[] = [];
   let done = false;
 
-  // added comments because of funky conversion of EventSource to AsyncIterator - For context: https://stackoverflow.com/questions/51045136/how-can-i-use-a-event-emitter-as-an-async-generator
-  // initialise a dummy promise - with a function called resolve in this scope set to its resolver
   let resolve: (a: unknown) => void;
   let promise = new Promise((r) => (resolve = r));
 
-  source.addEventListener('output', (e) => {
+  source.addEventListener('output', (e: MessageEvent) => {
     results.push(e.data as string);
-    // resolve the previous promise
     resolve({});
-    // override the promise - overide the resolve with the resolver of this promise
     promise = new Promise((r) => (resolve = r));
   });
 
@@ -80,11 +76,8 @@ async function* handleStreamingPrediction(
   });
 
   while (!done) {
-    // await the last promise
     await promise;
-    // sleep half a second - to avoid being throttled and rate limited by replicate
     await sleep(500);
-    // flush the results since last yield
     const combined = results.reduce((acc, curr) => (acc += curr), '');
     yield {
       created: getUnixTimestamp(),
@@ -100,7 +93,6 @@ async function* handleStreamingPrediction(
         },
       ],
     };
-    // reset the results
     results = [];
   }
 }
@@ -130,7 +122,6 @@ export async function ReplicateHandler(
   const prompt = combinePrompts(params.messages);
   const prediction = await replicate.predictions.create({
     version: version,
-    stream: params.stream,
     input: {
       prompt,
     },

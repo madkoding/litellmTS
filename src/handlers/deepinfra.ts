@@ -1,4 +1,4 @@
-import { ChatCompletion } from 'openai/resources/chat';
+import type { ChatCompletion } from 'openai/resources/chat';
 import {
   HandlerParams,
   HandlerParamsNotStreaming,
@@ -7,6 +7,7 @@ import {
   ResultNotStreaming,
   ResultStreaming,
   StreamingChunk,
+  type ConsistentResponse,
 } from '../types';
 
 async function* iterateResponse(
@@ -84,5 +85,28 @@ export async function DeepInfraHandler(
     return iterateResponse(res);
   }
 
-  return res.json() as Promise<ChatCompletion>;
+  const body = await res.json() as ChatCompletion;
+
+  const result: ConsistentResponse = {
+    created: body.created,
+    model: body.model,
+    choices: body.choices.map((c) => ({
+      finish_reason: c.finish_reason,
+      index: c.index,
+      message: {
+        role: c.message.role,
+        content: c.message.content,
+        function_call: c.message.function_call ?? undefined,
+      },
+    })),
+    usage: body.usage
+      ? {
+          prompt_tokens: body.usage.prompt_tokens,
+          completion_tokens: body.usage.completion_tokens,
+          total_tokens: body.usage.total_tokens,
+        }
+      : undefined,
+  };
+
+  return result;
 }

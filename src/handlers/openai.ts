@@ -1,4 +1,9 @@
 import OpenAI from 'openai';
+import type {
+  ChatCompletion,
+  ChatCompletionChunk,
+  ChatCompletionMessageParam,
+} from 'openai/resources/chat/completions';
 
 import {
   HandlerParams,
@@ -8,8 +13,14 @@ import {
   HandlerParamsStreaming,
 } from '../types';
 
+function toOpenAIMessages(
+  messages: HandlerParams['messages'],
+): ChatCompletionMessageParam[] {
+  return messages as ChatCompletionMessageParam[];
+}
+
 async function* toStreamingResponse(
-  response: AsyncIterable<OpenAI.Chat.ChatCompletionChunk>,
+  response: AsyncIterable<ChatCompletionChunk>,
 ): ResultStreaming {
   for await (const chunk of response) {
     yield {
@@ -58,16 +69,43 @@ export async function OpenAIHandler(
     baseURL: baseUrl,
   });
 
+  const messages = toOpenAIMessages(completionsParams.messages);
+
   if (params.stream) {
     const response = await openai.chat.completions.create({
       ...completionsParams,
-      stream: params.stream,
-    });
+      stream: true as const,
+      messages,
+    }) as unknown as AsyncIterable<ChatCompletionChunk>;
     return toStreamingResponse(response);
   }
 
-  return openai.chat.completions.create({
+  const response = await openai.chat.completions.create({
     ...completionsParams,
-    stream: false,
-  });
+    stream: false as const,
+    messages,
+  }) as unknown as ChatCompletion;
+
+  const result: ResultNotStreaming = {
+    created: response.created,
+    model: response.model,
+    choices: response.choices.map((c) => ({
+      finish_reason: c.finish_reason,
+      index: c.index,
+      message: {
+        role: c.message.role,
+        content: c.message.content,
+        function_call: c.message.function_call ?? undefined,
+      },
+    })),
+    usage: response.usage
+      ? {
+          prompt_tokens: response.usage.prompt_tokens,
+          completion_tokens: response.usage.completion_tokens,
+          total_tokens: response.usage.total_tokens,
+        }
+      : undefined,
+  };
+
+  return result;
 }

@@ -21,7 +21,7 @@ export function getHandler(
 ): Handler | EmbeddingHandler | null {
   const patterns = Object.keys(mapping);
   const handlerKey = patterns.find((pattern) => {
-    const regex = new RegExp(`${pattern}`, 'g');
+    const regex = new RegExp(`^${pattern}`);
     return model.match(regex);
   });
   if (!handlerKey) {

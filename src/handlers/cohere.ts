@@ -1,4 +1,4 @@
-import cohere from 'cohere-ai';
+import { CohereClient, type Cohere } from 'cohere-ai';
 
 import {
   HandlerParams,
@@ -8,25 +8,23 @@ import {
   HandlerParamsStreaming,
   StreamingChunk,
 } from '../types';
-import { cohereResponse, generateResponse } from 'cohere-ai/dist/models';
 import { combinePrompts } from '../utils/combinePrompts';
 import { getUnixTimestamp } from '../utils/getUnixTimestamp';
 import { toUsage } from '../utils/toUsage';
 
-// eslint-disable-next-line @typescript-eslint/require-await
 async function* toStream(
-  response: cohereResponse<generateResponse>,
+  response: Cohere.Generation,
   model: string,
   prompt: string,
 ): AsyncIterable<StreamingChunk> {
   yield {
     model: model,
     created: getUnixTimestamp(),
-    usage: toUsage(prompt, response.body.generations[0].text),
+    usage: toUsage(prompt, response.generations[0].text),
     choices: [
       {
         delta: {
-          content: response.body.generations[0].text,
+          content: response.generations[0].text,
           role: 'assistant',
         },
         finish_reason: 'stop',
@@ -53,7 +51,7 @@ export async function CohereHandler(
 ): Promise<ResultNotStreaming | ResultStreaming> {
   const apiKey = params.apiKey ?? process.env.COHERE_API_KEY!;
 
-  cohere.init(apiKey);
+  const cohere = new CohereClient({ token: apiKey });
   const textsCombined = combinePrompts(params.messages);
 
   const config = {
@@ -72,11 +70,11 @@ export async function CohereHandler(
   return {
     model: params.model,
     created: getUnixTimestamp(),
-    usage: toUsage(textsCombined, response.body.generations[0].text),
+    usage: toUsage(textsCombined, response.generations[0].text),
     choices: [
       {
         message: {
-          content: response.body.generations[0].text,
+          content: response.generations[0].text,
           role: 'assistant',
         },
         finish_reason: 'stop',

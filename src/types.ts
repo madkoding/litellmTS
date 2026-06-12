@@ -1,18 +1,25 @@
-import { ChatCompletionCreateParams } from 'openai/resources/chat/completions';
 import { EmbeddingParams, EmbeddingResponse } from './embedding';
 
-export type Role = 'system' | 'user' | 'assistant' | 'function';
+export type Role = 'system' | 'user' | 'assistant' | 'function' | 'tool';
 
 export interface Message {
   role: Role;
   content: string | null;
+  name?: string;
+  tool_call_id?: string;
+  tool_calls?: Array<{
+    id: string;
+    type: 'function';
+    function: { name: string; arguments: string };
+  }>;
 }
 
 export type FinishReason =
   | 'stop'
   | 'length'
   | 'function_call'
-  | 'content_filter';
+  | 'content_filter'
+  | 'tool_calls';
 
 export interface ConsistentResponseChoice {
   finish_reason: FinishReason | null;
@@ -72,11 +79,15 @@ export interface HandlerParamsBase {
   n?: number | null;
   max_tokens?: number | null;
   apiKey?: string;
-  functions?: ChatCompletionCreateParams.Function[];
+  functions?: Array<{
+    name: string;
+    description?: string;
+    parameters?: Record<string, unknown>;
+  }>;
   function_call?:
     | 'none'
     | 'auto'
-    | ChatCompletionCreateParams.FunctionCallOption;
+    | { name: string };
 }
 
 export interface HandlerParamsStreaming extends HandlerParamsBase {

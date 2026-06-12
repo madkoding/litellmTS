@@ -2,36 +2,63 @@ import { MODEL_HANDLER_MAPPINGS } from '../../src/completion';
 import { AI21Handler } from '../../src/handlers/ai21';
 import { AnthropicHandler } from '../../src/handlers/anthropic';
 import { CohereHandler } from '../../src/handlers/cohere';
+import { CopilotHandler } from '../../src/handlers/copilot';
 import { DeepInfraHandler } from '../../src/handlers/deepinfra';
+import { GeminiHandler } from '../../src/handlers/gemini';
 import { getHandler } from '../../src/handlers/getHandler';
 import { MistralHandler } from '../../src/handlers/mistral';
 import { OllamaHandler } from '../../src/handlers/ollama';
 import { OpenAIHandler } from '../../src/handlers/openai';
 import { ReplicateHandler } from '../../src/handlers/replicate';
+import { OPENAI_LIKE_MAPPINGS } from '../../src/mappings/openaiLike';
 
 describe('getHandler', () => {
-  it.each([
-    { model: 'claude-2', expectedHandler: AnthropicHandler },
-    { model: 'claude-instant-1', expectedHandler: AnthropicHandler },
-    { model: 'gpt-3.5-turbo', expectedHandler: OpenAIHandler },
-    { model: 'openai/test', expectedHandler: OpenAIHandler },
-    { model: 'ollama/llama2', expectedHandler: OllamaHandler },
-    { model: 'command-nightly', expectedHandler: CohereHandler },
-    { model: 'j2-light', expectedHandler: AI21Handler },
-    { model: 'j2-mid', expectedHandler: AI21Handler },
-    { model: 'j2-ultra', expectedHandler: AI21Handler },
-    { model: 'j2-grande-instruct', expectedHandler: AI21Handler },
-    { model: 'j2-mid-instruct', expectedHandler: AI21Handler },
-    { model: 'j2-ultra-instruct', expectedHandler: AI21Handler },
-    { model: 'replicate/test/test', expectedHandler: ReplicateHandler },
-    { model: 'deepinfra/test/test', expectedHandler: DeepInfraHandler },
-    { model: 'mistral/mistral-tiny', expectedHandler: MistralHandler },
-    { model: 'unknown', expectedHandler: null },
-  ])(
-    'should return the correct handler for a given model name',
-    ({ model, expectedHandler }) => {
-      const handler = getHandler(model, MODEL_HANDLER_MAPPINGS);
-      expect(handler).toBe(expectedHandler);
-    },
-  );
+  describe('dedicated handlers', () => {
+    it.each([
+      { model: 'claude-2', expectedHandler: AnthropicHandler },
+      { model: 'claude-instant-1', expectedHandler: AnthropicHandler },
+      { model: 'gpt-3.5-turbo', expectedHandler: OpenAIHandler },
+      { model: 'gpt-4o', expectedHandler: OpenAIHandler },
+      { model: 'openai/test', expectedHandler: OpenAIHandler },
+      { model: 'ollama/llama2', expectedHandler: OllamaHandler },
+      { model: 'command-nightly', expectedHandler: CohereHandler },
+      { model: 'j2-light', expectedHandler: AI21Handler },
+      { model: 'j2-mid', expectedHandler: AI21Handler },
+      { model: 'j2-ultra', expectedHandler: AI21Handler },
+      { model: 'j2-grande-instruct', expectedHandler: AI21Handler },
+      { model: 'j2-mid-instruct', expectedHandler: AI21Handler },
+      { model: 'j2-ultra-instruct', expectedHandler: AI21Handler },
+      { model: 'replicate/test/test', expectedHandler: ReplicateHandler },
+      { model: 'deepinfra/test/test', expectedHandler: DeepInfraHandler },
+      { model: 'mistral/mistral-tiny', expectedHandler: MistralHandler },
+      { model: 'gemini/gemini-2.0-flash', expectedHandler: GeminiHandler },
+      { model: 'gemini/gemini-2.0-pro', expectedHandler: GeminiHandler },
+      { model: 'copilot/gpt-4o', expectedHandler: CopilotHandler },
+    ])(
+      'should return the correct handler for $model',
+      ({ model, expectedHandler }) => {
+        const handler = getHandler(model, MODEL_HANDLER_MAPPINGS);
+        expect(handler).toBe(expectedHandler);
+      },
+    );
+  });
+
+  describe('OpenAI-compatible providers', () => {
+    it.each(Object.keys(OPENAI_LIKE_MAPPINGS))(
+      'should resolve a model with prefix %s',
+      (prefix) => {
+        const handler = getHandler(
+          `${prefix}test-model`,
+          MODEL_HANDLER_MAPPINGS,
+        );
+        expect(handler).toBeTruthy();
+        expect(typeof handler).toBe('function');
+      },
+    );
+  });
+
+  it('should return null for unsupported models', () => {
+    const handler = getHandler('unknown', MODEL_HANDLER_MAPPINGS);
+    expect(handler).toBeNull();
+  });
 });

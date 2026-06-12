@@ -5,4 +5,9 @@ module.exports = {
   modulePathIgnorePatterns: ['./dist'],
   runner: 'groups',
   setupFiles: ['dotenv/config'],
+  transform: {
+    '^.+\\.ts$': ['ts-jest', {
+      tsconfig: 'tsconfig.json',
+    }],
+  },
 };

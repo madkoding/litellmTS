@@ -4,65 +4,65 @@ import {
   HandlerParams,
   ResultStreaming,
   ResultNotStreaming,
-  StreamingChunk,
   Message,
   FinishReason,
 } from '../types';
 import { getUnixTimestamp } from '../utils/getUnixTimestamp';
-import { toUsage } from '../utils/toUsage';
 import { getAnthropicKey } from '../auth';
 
-function toAnthropicPrompt(messages: Message[]): string {
-  return messages
-    .map((msg) => {
-      const content = msg.content ?? '';
-      if (msg.role === 'assistant') {
-        return `${Anthropic.AI_PROMPT} ${content}`;
-      }
-      return `${Anthropic.HUMAN_PROMPT} ${content}`;
-    })
-    .join('') + Anthropic.AI_PROMPT;
+function toMessages(input: Message[]): { system: string | undefined; messages: Anthropic.MessageParam[] } {
+  let system: string | undefined;
+  const messages: Anthropic.MessageParam[] = [];
+
+  for (const msg of input) {
+    if (msg.role === 'system') {
+      system = (system ? system + '\n' : '') + (msg.content ?? '');
+      continue;
+    }
+    if (msg.role === 'user' || msg.role === 'assistant') {
+      messages.push({
+        role: msg.role,
+        content: msg.content ?? '',
+      });
+    }
+  }
+
+  return { system, messages };
 }
 
-function toFinishReson(string: string | null | undefined): FinishReason {
-  if (string === 'max_tokens') {
+function toFinishReason(reason: Anthropic.StopReason | null | undefined): FinishReason {
+  if (reason === 'max_tokens') {
     return 'length';
   }
 
   return 'stop';
 }
 
+function getTextContent(content: Anthropic.ContentBlock[]): string {
+  return content
+    .filter((block): block is Anthropic.TextBlock => block.type === 'text')
+    .map((block) => block.text)
+    .join('');
+}
+
 function toResponse(
-  anthropicResponse: Anthropic.Completion,
-  prompt: string,
+  message: Anthropic.Message,
 ): ResultNotStreaming {
   return {
-    model: anthropicResponse.model,
+    model: message.model,
     created: getUnixTimestamp(),
-    usage: toUsage(prompt, anthropicResponse.completion),
+    usage: {
+      prompt_tokens: message.usage.input_tokens,
+      completion_tokens: message.usage.output_tokens,
+      total_tokens: message.usage.input_tokens + message.usage.output_tokens,
+    },
     choices: [
       {
         message: {
-          content: anthropicResponse.completion,
+          content: getTextContent(message.content),
           role: 'assistant',
         },
-        finish_reason: toFinishReson(anthropicResponse.stop_reason),
-        index: 0,
-      },
-    ],
-  };
-}
-
-function toStreamingChunk(
-  anthropicResponse: Anthropic.Completion,
-): StreamingChunk {
-  return {
-    model: anthropicResponse.model,
-    created: getUnixTimestamp(),
-    choices: [
-      {
-        delta: { content: anthropicResponse.completion, role: 'assistant' },
-        finish_reason: toFinishReson(anthropicResponse.stop_reason),
+        finish_reason: toFinishReason(message.stop_reason),
         index: 0,
       },
     ],
@@ -70,10 +70,52 @@ function toStreamingChunk(
 }
 
 async function* toStreamingResponse(
-  stream: AsyncIterable<Anthropic.Completion>,
+  stream: AsyncIterable<Anthropic.RawMessageStreamEvent>,
 ): ResultStreaming {
-  for await (const chunk of stream) {
-    yield toStreamingChunk(chunk);
+  let model = '';
+  let stopReason: Anthropic.StopReason | null | undefined;
+
+  for await (const event of stream) {
+    switch (event.type) {
+      case 'message_start':
+        model = event.message.model;
+        stopReason = event.message.stop_reason;
+        break;
+
+      case 'content_block_delta':
+        if (event.delta.type === 'text_delta') {
+          yield {
+            model,
+            created: getUnixTimestamp(),
+            choices: [
+              {
+                delta: { content: event.delta.text, role: 'assistant' },
+                finish_reason: null,
+                index: 0,
+              },
+            ],
+          };
+        }
+        break;
+
+      case 'message_delta':
+        stopReason = event.delta.stop_reason;
+        break;
+
+      case 'message_stop':
+        yield {
+          model,
+          created: getUnixTimestamp(),
+          choices: [
+            {
+              delta: { content: '', role: 'assistant' },
+              finish_reason: toFinishReason(stopReason),
+              index: 0,
+            },
+          ],
+        };
+        break;
+    }
   }
 }
 
@@ -85,25 +127,31 @@ export async function AnthropicHandler(
   const anthropic = new Anthropic({
     apiKey: apiKey,
   });
-  const prompt = toAnthropicPrompt(params.messages);
 
-  const anthropicParams = {
+  const { system, messages } = toMessages(params.messages);
+
+  const anthropicParams: Anthropic.MessageCreateParams = {
     model: params.model,
-    max_tokens_to_sample: params.max_tokens ?? 300,
-    prompt,
+    max_tokens: params.max_tokens ?? 300,
+    messages,
+    ...(system ? { system } : {}),
   };
 
-  if (params.stream) {
-    const completionStream = await anthropic.completions.create({
-      ...anthropicParams,
-      stream: params.stream,
-    });
-    return toStreamingResponse(completionStream);
+  try {
+    if (params.stream) {
+      const stream = await anthropic.messages.create({
+        ...anthropicParams,
+        stream: true,
+      });
+      return toStreamingResponse(stream);
+    }
+
+    const message = await anthropic.messages.create(anthropicParams);
+
+    return toResponse(message);
+  } catch (err) {
+    throw new Error(`Anthropic API error: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
   }
-
-  const completion = await anthropic.completions.create(anthropicParams);
-
-  return toResponse(completion, prompt);
 }
 
 import { registerCompletionHandler } from '../registry';

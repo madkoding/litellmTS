@@ -1,16 +1,19 @@
-const mockGenerate = jest.fn();
-const mockGenerateStream = jest.fn();
+const mockChat = jest.fn();
+const mockChatStream = jest.fn();
 jest.mock('cohere-ai', () => ({
+  Cohere: {},
   CohereClient: jest.fn().mockImplementation(() => ({
-    generate: mockGenerate,
-    generateStream: mockGenerateStream,
+    chat: mockChat,
+    chatStream: mockChatStream,
   })),
 }));
 
 import { CohereHandler } from '../../src/handlers/cohere';
 
-const mockGeneration = {
-  generations: [{ text: 'Hello from Cohere' }],
+const mockChatResponse = {
+  text: 'Hello from Cohere',
+  finishReason: 'COMPLETE',
+  meta: { tokens: { inputTokens: 10, outputTokens: 5 } },
 };
 
 describe('CohereHandler', () => {
@@ -28,13 +31,21 @@ describe('CohereHandler', () => {
   describe('non-streaming', () => {
     it('returns formatted result', async () => {
       process.env.COHERE_API_KEY = 'test-key';
-      mockGenerate.mockResolvedValueOnce(mockGeneration);
+      mockChat.mockResolvedValueOnce(mockChatResponse);
 
       const result = await CohereHandler({
         model: 'command',
         messages: [{ role: 'user', content: 'hello' }],
         stream: false,
       });
+
+      expect(mockChat).toHaveBeenCalledWith(
+        expect.objectContaining({
+          model: 'command',
+          message: 'hello',
+          maxTokens: 50,
+        }),
+      );
 
       expect(result).toMatchObject({
         model: 'command',
@@ -45,6 +56,7 @@ describe('CohereHandler', () => {
             index: 0,
           },
         ],
+        usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
       });
     });
   });
@@ -54,11 +66,11 @@ describe('CohereHandler', () => {
       process.env.COHERE_API_KEY = 'test-key';
 
       async function* fakeStream(): AsyncGenerator {
-        yield { eventType: 'text-generation', text: 'Hello ', isFinished: false, index: 0 };
-        yield { eventType: 'text-generation', text: 'World!', isFinished: false, index: 0 };
-        yield { eventType: 'stream-end', isFinished: true, finishReason: 'COMPLETE', response: {} };
+        yield { eventType: 'text-generation', text: 'Hello ' };
+        yield { eventType: 'text-generation', text: 'World!' };
+        yield { eventType: 'stream-end', finishReason: 'COMPLETE', response: { text: 'Hello World!' } };
       }
-      mockGenerateStream.mockResolvedValueOnce(fakeStream());
+      mockChatStream.mockResolvedValueOnce(fakeStream());
 
       const result = await CohereHandler({
         model: 'command',

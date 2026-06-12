@@ -1,19 +1,55 @@
-import { CohereClient } from 'cohere-ai';
+import { Cohere, CohereClient } from 'cohere-ai';
 
 import {
   HandlerParams,
   ResultStreaming,
   ResultNotStreaming,
-  StreamingChunk,
+  Message,
 } from '../types';
-import { combinePrompts } from '../utils/combinePrompts';
 import { getUnixTimestamp } from '../utils/getUnixTimestamp';
-import { toUsage } from '../utils/toUsage';
 
-interface CohereStreamEvent {
-  eventType: string;
-  text?: string;
-  isFinished?: boolean;
+function toChatHistory(messages: Message[]): {
+  message: string;
+  chatHistory?: Cohere.Message[];
+  preamble?: string;
+} {
+  let system: string | undefined;
+  const chatMessages: Message[] = [];
+
+  for (const msg of messages) {
+    if (msg.role === 'system') {
+      system = (system ? system + '\n' : '') + (msg.content ?? '');
+    } else {
+      chatMessages.push(msg);
+    }
+  }
+
+  let lastUserMessage = '';
+  const chatHistory: Cohere.Message[] = [];
+
+  for (let i = 0; i < chatMessages.length; i++) {
+    const msg = chatMessages[i];
+    const isLastUser = i === chatMessages.length - 1 && msg.role === 'user';
+
+    if (isLastUser) {
+      lastUserMessage = msg.content ?? '';
+    } else if (msg.role === 'user') {
+      chatHistory.push({ role: 'USER', message: msg.content ?? '' });
+    } else if (msg.role === 'assistant') {
+      chatHistory.push({ role: 'CHATBOT', message: msg.content ?? '' });
+    }
+  }
+
+  if (!lastUserMessage && chatMessages.length > 0) {
+    const last = chatMessages[chatMessages.length - 1];
+    lastUserMessage = last.content ?? '';
+  }
+
+  return {
+    message: lastUserMessage,
+    ...(chatHistory.length > 0 ? { chatHistory } : {}),
+    ...(system ? { preamble: system } : {}),
+  };
 }
 
 export async function CohereHandler(
@@ -23,56 +59,74 @@ export async function CohereHandler(
   if (!apiKey) throw new Error('Cohere requires an API key. Set COHERE_API_KEY environment variable or pass apiKey in params.');
 
   const cohere = new CohereClient({ token: apiKey });
-  const textsCombined = combinePrompts(params.messages);
+  const { message, chatHistory, preamble } = toChatHistory(params.messages);
 
-  const config = {
+  const chatParams: Cohere.ChatRequest = {
     model: params.model,
-    prompt: textsCombined,
-    max_tokens: params.max_tokens ?? 50,
+    message,
+    ...(chatHistory ? { chatHistory } : {}),
+    ...(preamble ? { preamble } : {}),
+    maxTokens: params.max_tokens ?? 50,
     temperature: params.temperature ?? 1,
   };
 
-  if (params.stream) {
-    const stream = await cohere.generateStream({
-      model: params.model,
-      prompt: textsCombined,
-      maxTokens: params.max_tokens ?? 50,
-      temperature: params.temperature ?? 1,
-    });
-    return toRealStream(stream, params.model, textsCombined);
-  }
+  try {
+    if (params.stream) {
+      const stream = await cohere.chatStream({
+        ...chatParams,
+      });
+      return toStreamingResponse(stream, params.model);
+    }
 
-  const response = await cohere.generate(config);
-  return {
-    model: params.model,
-    created: getUnixTimestamp(),
-    usage: toUsage(textsCombined, response.generations[0].text),
-    choices: [
-      {
-        message: {
-          content: response.generations[0].text,
-          role: 'assistant',
+    const { text, finishReason, meta } = await cohere.chat(chatParams);
+
+    return {
+      model: params.model,
+      created: getUnixTimestamp(),
+      usage: meta?.tokens
+        ? {
+            prompt_tokens: meta.tokens.inputTokens ?? 0,
+            completion_tokens: meta.tokens.outputTokens ?? 0,
+            total_tokens: (meta.tokens.inputTokens ?? 0) + (meta.tokens.outputTokens ?? 0),
+          }
+        : undefined,
+      choices: [
+        {
+          message: {
+            content: text,
+            role: 'assistant',
+          },
+          finish_reason: toFinishReason(finishReason),
+          index: 0,
         },
-        finish_reason: 'stop',
-        index: 0,
-      },
-    ],
-  };
+      ],
+    };
+  } catch (err) {
+    throw new Error(`Cohere API error: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
+  }
 }
 
-async function* toRealStream(
-  stream: AsyncIterable<CohereStreamEvent>,
+function toFinishReason(
+  reason: string | null | undefined,
+): 'stop' | 'length' | 'content_filter' {
+  if (reason === 'MAX_TOKENS' || reason === 'ERROR_LIMIT') {
+    return 'length';
+  }
+  if (reason === 'ERROR_TOXIC') {
+    return 'content_filter';
+  }
+  return 'stop';
+}
+
+async function* toStreamingResponse(
+  stream: AsyncIterable<Cohere.StreamedChatResponse>,
   model: string,
-  prompt: string,
-): AsyncIterable<StreamingChunk> {
-  let fullText = '';
+): ResultStreaming {
   for await (const event of stream) {
     if (event.eventType === 'text-generation') {
-      fullText += event.text ?? '';
       yield {
         model,
         created: getUnixTimestamp(),
-        usage: toUsage(prompt, fullText),
         choices: [
           {
             delta: { content: event.text, role: 'assistant' },
@@ -85,18 +139,14 @@ async function* toRealStream(
       yield {
         model,
         created: getUnixTimestamp(),
-        usage: toUsage(prompt, fullText),
         choices: [
           {
             delta: { content: '', role: 'assistant' },
-            finish_reason: 'stop',
+            finish_reason: toFinishReason(event.finishReason),
             index: 0,
           },
         ],
       };
-    } else if (event.eventType === 'stream-error') {
-      const msg = (event as { message?: string }).message ?? 'unknown';
-      throw new Error(`Cohere stream error: ${msg}`);
     }
   }
 }

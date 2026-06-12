@@ -56,14 +56,13 @@ jest.mock('openai', () => {
 jest.mock('@anthropic-ai/sdk', () => {
   return jest.fn().mockImplementation(() => {
     return {
-      completions: {
+      messages: {
         create: anthropicMockCreate,
       },
     };
   });
 });
 
-import Anthropic from '@anthropic-ai/sdk';
 import { completion } from '../src';
 import { HandlerParams } from '../src/types';
 
@@ -162,9 +161,14 @@ describe('litellm', () => {
   describe('anthropic', () => {
     it('supports using anthropic models without streaming', async () => {
       anthropicMockCreate.mockResolvedValueOnce({
-        completion: 'response text',
+        id: 'msg_123',
+        type: 'message',
+        role: 'assistant',
+        content: [{ type: 'text', text: 'response text' }],
         model: 'claude-2',
-        stop_reason: 'stop',
+        stop_reason: 'end_turn',
+        stop_sequence: null,
+        usage: { input_tokens: 10, output_tokens: 5 },
       });
       const params: HandlerParams = {
         model: 'claude-2',
@@ -176,14 +180,13 @@ describe('litellm', () => {
         ],
         stream: false,
       };
-      const expectedPrompt = `${Anthropic.HUMAN_PROMPT} ${params.messages[0].content}${Anthropic.AI_PROMPT}`;
       const result = await completion(params);
-      const expectedParams = {
-        model: 'claude-2',
-        prompt: expectedPrompt,
-      };
       expect(anthropicMockCreate).toHaveBeenCalledWith(
-        expect.objectContaining(expectedParams),
+        expect.objectContaining({
+          model: 'claude-2',
+          max_tokens: 300,
+          messages: [{ role: 'user', content: 'How are you' }],
+        }),
       );
       expect(result).toMatchObject({
         choices: [

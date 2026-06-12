@@ -7,10 +7,8 @@ import type {
 
 import {
   HandlerParams,
-  HandlerParamsNotStreaming,
   ResultStreaming,
   ResultNotStreaming,
-  HandlerParamsStreaming,
 } from '../types';
 
 function toOpenAIMessages(
@@ -40,18 +38,6 @@ async function* toStreamingResponse(
     };
   }
 }
-
-export async function OpenAIHandler(
-  params: HandlerParamsNotStreaming,
-): Promise<ResultNotStreaming>;
-
-export async function OpenAIHandler(
-  params: HandlerParamsStreaming,
-): Promise<ResultStreaming>;
-
-export async function OpenAIHandler(
-  params: HandlerParams,
-): Promise<ResultNotStreaming | ResultStreaming>;
 
 export async function OpenAIHandler(
   params: HandlerParams,
@@ -109,3 +95,7 @@ export async function OpenAIHandler(
 
   return result;
 }
+
+import { registerCompletionHandler } from '../registry';
+registerCompletionHandler('gpt-', OpenAIHandler);
+registerCompletionHandler('openai/', OpenAIHandler);

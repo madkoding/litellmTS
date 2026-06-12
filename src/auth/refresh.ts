@@ -45,7 +45,7 @@ async function exchangeCopilotToken(
 export async function getValidToken(): Promise<string | null> {
   const creds = await getCopilotCredentials();
 
-  if (!creds || !creds.copilotToken || !creds.githubToken) {
+  if (!creds?.copilotToken || !creds?.githubToken) {
     return null;
   }
 

@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import { EmbeddingParams, EmbeddingResponse } from '../embedding';
+import { EmbeddingParams, EmbeddingResponse } from '../types';
 
 export async function OpenAIEmbeddingHandler(
   params: EmbeddingParams,
@@ -13,3 +13,6 @@ export async function OpenAIEmbeddingHandler(
   });
   return openai.embeddings.create({ input: params.input, model: params.model });
 }
+
+import { registerEmbeddingHandler } from '../registry';
+registerEmbeddingHandler('text-embedding-', OpenAIEmbeddingHandler);

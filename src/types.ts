@@ -1,17 +1,16 @@
-import { EmbeddingParams, EmbeddingResponse } from './embedding';
-
 export type Role = 'system' | 'user' | 'assistant' | 'function' | 'tool';
 
+/** A single message in a chat conversation. */
 export interface Message {
   role: Role;
   content: string | null;
   name?: string;
   tool_call_id?: string;
-  tool_calls?: Array<{
+  tool_calls?: {
     id: string;
     type: 'function';
     function: { name: string; arguments: string };
-  }>;
+  }[];
 }
 
 export type FinishReason =
@@ -50,6 +49,7 @@ export interface ConsistentResponseUsage {
   total_tokens: number;
 }
 
+/** Normalized completion response shared across all providers. */
 export interface ConsistentResponse {
   choices: ConsistentResponseChoice[];
   model?: string;
@@ -67,6 +67,7 @@ export type ResultStreaming = AsyncIterable<StreamingChunk>;
 
 export type Result = ResultNotStreaming | ResultStreaming;
 
+/** Parameters accepted by all completion handlers. */
 export interface HandlerParamsBase {
   model: string;
   messages: Message[];
@@ -79,11 +80,11 @@ export interface HandlerParamsBase {
   n?: number | null;
   max_tokens?: number | null;
   apiKey?: string;
-  functions?: Array<{
+  functions?: {
     name: string;
     description?: string;
     parameters?: Record<string, unknown>;
-  }>;
+  }[];
   function_call?:
     | 'none'
     | 'auto'
@@ -99,6 +100,27 @@ export interface HandlerParamsNotStreaming extends HandlerParamsBase {
 }
 
 export type HandlerParams = HandlerParamsStreaming | HandlerParamsNotStreaming;
+
+/** Parameters for embedding requests. */
+export interface EmbeddingParams {
+  input: string | string[];
+  model: string;
+  apiKey?: string;
+  baseUrl?: string;
+}
+
+/** A single embedding vector and its index. */
+export interface EmbeddingObject {
+  embedding: number[];
+  index: number;
+}
+
+/** Normalized embedding response shared across all providers. */
+export interface EmbeddingResponse {
+  usage?: Pick<import('openai/resources').CompletionUsage, 'prompt_tokens' | 'total_tokens'>;
+  model: string;
+  data: EmbeddingObject[];
+}
 
 export type Handler = (params: HandlerParams) => Promise<Result>;
 export type EmbeddingHandler = (

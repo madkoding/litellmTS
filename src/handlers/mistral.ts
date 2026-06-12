@@ -2,37 +2,13 @@ import type { ChatCompletion } from 'openai/resources/chat';
 
 import {
   HandlerParams,
-  HandlerParamsNotStreaming,
-  HandlerParamsStreaming,
   Message,
   ResultNotStreaming,
   ResultStreaming,
   StreamingChunk,
   type ConsistentResponse,
 } from '../types';
-
-async function* iterateResponse(
-  response: Response,
-): AsyncIterable<StreamingChunk> {
-  const reader = response.body?.getReader();
-  let done = false;
-
-  while (!done) {
-    const next = await reader?.read();
-    if (next?.value) {
-      done = next.done;
-      const decoded = new TextDecoder().decode(next.value);
-      if (decoded.startsWith('data: [DONE]')) {
-        done = true;
-      } else {
-        const [, value] = decoded.split('data: ');
-        yield JSON.parse(value);
-      }
-    } else {
-      done = true;
-    }
-  }
-}
+import { iterateSSEStream } from '../utils/sse';
 
 async function getMistralResponse(
   model: string,
@@ -56,22 +32,11 @@ async function getMistralResponse(
 }
 
 export async function MistralHandler(
-  params: HandlerParamsNotStreaming,
-): Promise<ResultNotStreaming>;
-
-export async function MistralHandler(
-  params: HandlerParamsStreaming,
-): Promise<ResultStreaming>;
-
-export async function MistralHandler(
-  params: HandlerParams,
-): Promise<ResultNotStreaming | ResultStreaming>;
-
-export async function MistralHandler(
   params: HandlerParams,
 ): Promise<ResultNotStreaming | ResultStreaming> {
   const baseUrl = params.baseUrl ?? 'https://api.mistral.ai';
-  const apiKey = params.apiKey ?? process.env.MISTRAL_API_KEY!;
+  const apiKey = params.apiKey ?? process.env.MISTRAL_API_KEY;
+  if (!apiKey) throw new Error('Mistral requires an API key. Set MISTRAL_API_KEY environment variable or pass apiKey in params.');
   const model = params.model.split('mistral/')[1];
 
   const res = await getMistralResponse(
@@ -82,8 +47,12 @@ export async function MistralHandler(
     params.stream ?? false,
   );
 
+  if (!res.ok) {
+    throw new Error(`Mistral API error: ${res.status} ${res.statusText}`);
+  }
+
   if (params.stream) {
-    return iterateResponse(res);
+    return iterateSSEStream(res, (payload) => JSON.parse(payload) as StreamingChunk);
   }
 
   const body = await res.json() as ChatCompletion;
@@ -111,3 +80,6 @@ export async function MistralHandler(
 
   return result;
 }
+
+import { registerCompletionHandler } from '../registry';
+registerCompletionHandler('mistral/', MistralHandler);

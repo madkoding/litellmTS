@@ -1,8 +1,4 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/madkoding/litellmTS/main/.github/banner.png" alt="LiteLLM.ts" width="600"/>
-</p>
-
-<p align="center">
   <strong>Unified TypeScript interface for 45+ LLM providers</strong><br>
   One API. Every model. Zero boilerplate.
 </p>
@@ -11,11 +7,14 @@
   <a href="https://github.com/madkoding/litellmTS/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/license-GPLv3-blue.svg" alt="License"/>
   </a>
-  <a href="https://github.com/madkoding/litellmTS">
-    <img src="https://img.shields.io/github/v/release/madkoding/litellmTS" alt="GitHub Release"/>
+  <a href="https://www.npmjs.com/package/litellmts-core">
+    <img src="https://img.shields.io/npm/v/litellmts-core" alt="npm"/>
   </a>
   <a href="https://nodejs.org/">
     <img src="https://img.shields.io/badge/node-%3E%3D22-brightgreen" alt="Node"/>
+  </a>
+  <a href="https://github.com/madkoding/litellmTS/actions">
+    <img src="https://img.shields.io/github/actions/workflow/status/madkoding/litellmTS/ci.yml" alt="CI"/>
   </a>
 </p>
 
@@ -23,34 +22,24 @@
 
 ## Installation
 
-### From GitHub (recommended)
+```bash
+npm install litellmts-core
+```
 
-Add this to your `package.json`:
+### From GitHub (alternative)
 
 ```json
 {
   "dependencies": {
-    "@litellmts/core": "github:madkoding/litellmTS"
+    "litellmts-core": "github:madkoding/litellmTS"
   }
 }
-```
-
-Then install:
-
-```bash
-npm install
-```
-
-### Alternative — npm (when published)
-
-```bash
-npm install @litellmts/core
 ```
 
 ## Quick Start
 
 ```ts
-import { completion } from '@litellmts/core';
+import { completion } from 'litellmts-core';
 
 const response = await completion({
   model: 'gpt-4o-mini',
@@ -85,7 +74,7 @@ await completion({ model: 'deepseek/deepseek-chat', ... });
 ### Non-streaming
 
 ```ts
-import { completion } from '@litellmts/core';
+import { completion } from 'litellmts-core';
 
 const response = await completion({
   model: 'gpt-4o-mini',
@@ -120,7 +109,7 @@ for await (const chunk of stream) {
 ### Embeddings
 
 ```ts
-import { embedding } from '@litellmts/core';
+import { embedding } from 'litellmts-core';
 
 const result = await embedding({
   model: 'text-embedding-3-small',
@@ -229,10 +218,10 @@ npx litellm login anthropic
 └──────────────┘     └──────────────┘     └─────────────────┘
                            │
                     ┌──────┴──────┐
-                    │  Model Map   │
-                    │  groq/ → ... │
-                    │  claude- → . │
-                    │  gpt- → ...  │
+                    │  Registry   │
+                    │  groq/ → .  │
+                    │  claude- →  │
+                    │  gpt- → ..  │
                     └─────────────┘
 ```
 

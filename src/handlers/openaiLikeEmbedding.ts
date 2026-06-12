@@ -1,5 +1,5 @@
 import { OpenAIEmbeddingHandler } from './openaiEmbedding';
-import type { EmbeddingParams, EmbeddingResponse } from '../embedding';
+import type { EmbeddingParams, EmbeddingResponse } from '../types';
 import type { OpenAILikeConfig } from '../mappings/openaiLike';
 
 export function createOpenAILikeEmbeddingHandler(
@@ -18,4 +18,10 @@ export function createOpenAILikeEmbeddingHandler(
       baseUrl: config.baseUrl,
     });
   };
+}
+
+import { OPENAI_LIKE_MAPPINGS } from '../mappings/openaiLike';
+import { registerEmbeddingHandler } from '../registry';
+for (const [prefix, config] of Object.entries(OPENAI_LIKE_MAPPINGS)) {
+  registerEmbeddingHandler(prefix, createOpenAILikeEmbeddingHandler(config));
 }

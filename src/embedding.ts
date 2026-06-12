@@ -1,45 +1,24 @@
-import { CompletionUsage } from 'openai/resources';
 import { getHandler } from './handlers/getHandler';
-import { EmbeddingHandler } from './types';
-import { OpenAIEmbeddingHandler } from './handlers/openaiEmbedding';
-import { OllamaEmbeddingHandler } from './handlers/ollamaEmbedding';
-import { MistralEmbeddingHandler } from './handlers/mistralEmbedding';
-import { GeminiEmbeddingHandler } from './handlers/geminiEmbedding';
-import { OPENAI_LIKE_MAPPINGS } from './mappings/openaiLike';
-import { createOpenAILikeEmbeddingHandler } from './handlers/openaiLikeEmbedding';
+import { EmbeddingHandler, EmbeddingParams, EmbeddingResponse } from './types';
+import { getEmbeddingHandlers } from './registry';
 
-export interface EmbeddingParams {
-  input: string | string[];
-  model: string;
-  apiKey?: string;
-  baseUrl?: string;
-}
+import './handlers';
 
-export interface EmbeddingObject {
-  embedding: number[];
-  index: number;
-}
+const EMBEDDING_MODEL_HANDLER_MAPPINGS: Record<string, EmbeddingHandler> =
+  getEmbeddingHandlers();
 
-export interface EmbeddingResponse {
-  usage?: Pick<CompletionUsage, 'prompt_tokens' | 'total_tokens'>;
-  model: string;
-  data: EmbeddingObject[];
-}
-
-const OPENAI_LIKE_EMBEDDING_HANDLERS: Record<string, EmbeddingHandler> = {};
-for (const [prefix, config] of Object.entries(OPENAI_LIKE_MAPPINGS)) {
-  OPENAI_LIKE_EMBEDDING_HANDLERS[prefix] =
-    createOpenAILikeEmbeddingHandler(config);
-}
-
-const EMBEDDING_MODEL_HANDLER_MAPPINGS: Record<string, EmbeddingHandler> = {
-  ...OPENAI_LIKE_EMBEDDING_HANDLERS,
-  'text-embedding-': OpenAIEmbeddingHandler,
-  'ollama/': OllamaEmbeddingHandler,
-  'mistral/': MistralEmbeddingHandler,
-  'gemini/': GeminiEmbeddingHandler,
-};
-
+/**
+ * Generate embeddings for the given input using the provider that matches the model prefix.
+ *
+ * Supports OpenAI, Mistral, Gemini, Ollama, and 38+ OpenAI-compatible embedding providers.
+ *
+ * @param params - The embedding parameters including input text and model name
+ * @returns An embedding response with the vector data
+ *
+ * @example
+ * const res = await embedding({ model: 'text-embedding-3-small', input: 'Hello world' });
+ * console.log(res.data[0].embedding);
+ */
 export async function embedding(
   params: EmbeddingParams,
 ): Promise<EmbeddingResponse> {

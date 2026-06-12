@@ -1,5 +1,5 @@
 import { CreateEmbeddingResponse } from 'openai/resources/embeddings';
-import { EmbeddingParams, EmbeddingResponse } from '../embedding';
+import { EmbeddingParams, EmbeddingResponse } from '../types';
 
 async function getMistralResponse(
   model: string,
@@ -25,7 +25,8 @@ export async function MistralEmbeddingHandler(
 ): Promise<EmbeddingResponse> {
   const model = params.model.split('mistral/')[1];
   const baseUrl = params.baseUrl ?? 'https://api.mistral.ai';
-  const apiKey = params.apiKey ?? process.env.MISTRAL_API_KEY!;
+  const apiKey = params.apiKey ?? process.env.MISTRAL_API_KEY;
+  if (!apiKey) throw new Error('Mistral requires an API key. Set MISTRAL_API_KEY environment variable or pass apiKey in params.');
   const response = await getMistralResponse(
     model,
     params.input,
@@ -41,3 +42,6 @@ export async function MistralEmbeddingHandler(
   const body = (await response.json()) as CreateEmbeddingResponse;
   return body;
 }
+
+import { registerEmbeddingHandler } from '../registry';
+registerEmbeddingHandler('mistral/', MistralEmbeddingHandler);

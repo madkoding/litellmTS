@@ -1,3 +1,5 @@
+/* eslint-disable no-console */
+import { execFileSync } from 'node:child_process';
 import { setCopilotCredentials } from './store';
 
 const CLIENT_ID = 'Iv1.b507a08c87ecfe98';
@@ -33,15 +35,14 @@ async function sleep(ms: number): Promise<void> {
 }
 
 function openBrowser(url: string): void {
-  const { execSync } = require('node:child_process');
   const platform = process.platform;
   try {
     if (platform === 'darwin') {
-      execSync(`open "${url}"`, { stdio: 'ignore' });
+      execFileSync('open', [url], { stdio: 'ignore' });
     } else if (platform === 'win32') {
-      execSync(`start "" "${url}"`, { stdio: 'ignore' });
+      execFileSync('cmd', ['/c', 'start', '', url], { stdio: 'ignore' });
     } else {
-      execSync(`xdg-open "${url}" 2>/dev/null || sensible-browser "${url}" 2>/dev/null || x-www-browser "${url}"`, { stdio: 'ignore' });
+      execFileSync('xdg-open', [url], { stdio: 'ignore' });
     }
   } catch {
     // browser open failed, user can open manually
@@ -161,8 +162,16 @@ async function exchangeCopilotToken(
   return { token: data.token, expires_at: data.expires_at };
 }
 
+/**
+ * Start the GitHub Copilot OAuth device-code login flow.
+ *
+ * Opens the browser for user authorization, polls for the GitHub access token,
+ * exchanges it for a Copilot token, and persists credentials to `~/.litellm/auth.json`.
+ *
+ * @param deployment - GitHub deployment URL (default: `'github.com'`)
+ */
 export async function login(
-  deployment: 'github.com' | string = 'github.com',
+  deployment = 'github.com',
 ): Promise<void> {
   console.log('\n🔐 Iniciando sesión en GitHub Copilot...\n');
 

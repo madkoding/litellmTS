@@ -2,22 +2,26 @@ import Anthropic from '@anthropic-ai/sdk';
 
 import {
   HandlerParams,
-  HandlerParamsNotStreaming,
   ResultStreaming,
   ResultNotStreaming,
-  HandlerParamsStreaming,
   StreamingChunk,
   Message,
   FinishReason,
 } from '../types';
-import { combinePrompts } from '../utils/combinePrompts';
 import { getUnixTimestamp } from '../utils/getUnixTimestamp';
 import { toUsage } from '../utils/toUsage';
 import { getAnthropicKey } from '../auth';
 
 function toAnthropicPrompt(messages: Message[]): string {
-  const textsCombined = combinePrompts(messages);
-  return `${Anthropic.HUMAN_PROMPT} ${textsCombined}${Anthropic.AI_PROMPT}`;
+  return messages
+    .map((msg) => {
+      const content = msg.content ?? '';
+      if (msg.role === 'assistant') {
+        return `${Anthropic.AI_PROMPT} ${content}`;
+      }
+      return `${Anthropic.HUMAN_PROMPT} ${content}`;
+    })
+    .join('') + Anthropic.AI_PROMPT;
 }
 
 function toFinishReson(string: string | null | undefined): FinishReason {
@@ -74,18 +78,6 @@ async function* toStreamingResponse(
 }
 
 export async function AnthropicHandler(
-  params: HandlerParamsNotStreaming,
-): Promise<ResultNotStreaming>;
-
-export async function AnthropicHandler(
-  params: HandlerParamsStreaming,
-): Promise<ResultStreaming>;
-
-export async function AnthropicHandler(
-  params: HandlerParams,
-): Promise<ResultNotStreaming | ResultStreaming>;
-
-export async function AnthropicHandler(
   params: HandlerParams,
 ): Promise<ResultNotStreaming | ResultStreaming> {
   const apiKey = params.apiKey ?? process.env.ANTHROPIC_API_KEY ?? (await getAnthropicKey());
@@ -97,7 +89,7 @@ export async function AnthropicHandler(
 
   const anthropicParams = {
     model: params.model,
-    max_tokens_to_sample: 300,
+    max_tokens_to_sample: params.max_tokens ?? 300,
     prompt,
   };
 
@@ -113,3 +105,6 @@ export async function AnthropicHandler(
 
   return toResponse(completion, prompt);
 }
+
+import { registerCompletionHandler } from '../registry';
+registerCompletionHandler('claude-', AnthropicHandler);

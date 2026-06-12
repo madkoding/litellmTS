@@ -1,37 +1,13 @@
 import type { ChatCompletion } from 'openai/resources/chat';
 import {
   HandlerParams,
-  HandlerParamsNotStreaming,
-  HandlerParamsStreaming,
   Message,
   ResultNotStreaming,
   ResultStreaming,
   StreamingChunk,
   type ConsistentResponse,
 } from '../types';
-
-async function* iterateResponse(
-  response: Response,
-): AsyncIterable<StreamingChunk> {
-  const reader = response.body?.getReader();
-  let done = false;
-
-  while (!done) {
-    const next = await reader?.read();
-    if (next?.value) {
-      done = next.done;
-      const decoded = new TextDecoder().decode(next.value);
-      if (decoded.startsWith('data: [DONE]')) {
-        done = true;
-      } else {
-        const [, value] = decoded.split('data: ');
-        yield JSON.parse(value);
-      }
-    } else {
-      done = true;
-    }
-  }
-}
+import { iterateSSEStream } from '../utils/sse';
 
 async function getDeepInfraResponse(
   model: string,
@@ -55,22 +31,11 @@ async function getDeepInfraResponse(
 }
 
 export async function DeepInfraHandler(
-  params: HandlerParamsNotStreaming,
-): Promise<ResultNotStreaming>;
-
-export async function DeepInfraHandler(
-  params: HandlerParamsStreaming,
-): Promise<ResultStreaming>;
-
-export async function DeepInfraHandler(
-  params: HandlerParams,
-): Promise<ResultNotStreaming | ResultStreaming>;
-
-export async function DeepInfraHandler(
   params: HandlerParams,
 ): Promise<ResultNotStreaming | ResultStreaming> {
   const baseUrl = params.baseUrl ?? 'https://api.deepinfra.com';
-  const apiKey = params.apiKey ?? process.env.DEEPINFRA_API_KEY!;
+  const apiKey = params.apiKey ?? process.env.DEEPINFRA_API_KEY;
+  if (!apiKey) throw new Error('DeepInfra requires an API key. Set DEEPINFRA_API_KEY environment variable or pass apiKey in params.');
   const model = params.model.split('deepinfra/')[1];
 
   const res = await getDeepInfraResponse(
@@ -81,8 +46,12 @@ export async function DeepInfraHandler(
     params.stream ?? false,
   );
 
+  if (!res.ok) {
+    throw new Error(`DeepInfra API error: ${res.status} ${res.statusText}`);
+  }
+
   if (params.stream) {
-    return iterateResponse(res);
+    return iterateSSEStream(res, (payload) => JSON.parse(payload) as StreamingChunk);
   }
 
   const body = await res.json() as ChatCompletion;
@@ -110,3 +79,6 @@ export async function DeepInfraHandler(
 
   return result;
 }
+
+import { registerCompletionHandler } from '../registry';
+registerCompletionHandler('deepinfra/', DeepInfraHandler);

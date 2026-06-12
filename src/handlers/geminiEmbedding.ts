@@ -1,11 +1,12 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-import { EmbeddingParams, EmbeddingResponse } from '../embedding';
+import { EmbeddingParams, EmbeddingResponse } from '../types';
 
 export async function GeminiEmbeddingHandler(
   params: EmbeddingParams,
 ): Promise<EmbeddingResponse> {
-  const apiKey = params.apiKey ?? process.env.GEMINI_API_KEY!;
+  const apiKey = params.apiKey ?? process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error('Gemini requires an API key. Set GEMINI_API_KEY environment variable or pass apiKey in params.');
   const modelName = params.model.startsWith('gemini/')
     ? params.model.slice(7)
     : params.model;
@@ -29,3 +30,6 @@ export async function GeminiEmbeddingHandler(
     data: [{ embedding: result.embedding.values, index: 0 }],
   };
 }
+
+import { registerEmbeddingHandler } from '../registry';
+registerEmbeddingHandler('gemini/', GeminiEmbeddingHandler);

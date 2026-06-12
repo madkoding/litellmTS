@@ -1,7 +1,5 @@
 import {
   HandlerParams,
-  HandlerParamsNotStreaming,
-  HandlerParamsStreaming,
   ResultNotStreaming,
   ResultStreaming,
   StreamingChunk,
@@ -100,18 +98,6 @@ async function getOllamaResponse(
 }
 
 export async function OllamaHandler(
-  params: HandlerParamsNotStreaming,
-): Promise<ResultNotStreaming>;
-
-export async function OllamaHandler(
-  params: HandlerParamsStreaming,
-): Promise<ResultStreaming>;
-
-export async function OllamaHandler(
-  params: HandlerParams,
-): Promise<ResultNotStreaming | ResultStreaming>;
-
-export async function OllamaHandler(
   params: HandlerParams,
 ): Promise<ResultNotStreaming | ResultStreaming> {
   const baseUrl = params.baseUrl ?? 'http://127.0.0.1:11434';
@@ -137,8 +123,11 @@ export async function OllamaHandler(
   }
 
   const message = chunks.reduce((acc: string, chunk: StreamingChunk) => {
-    return (acc += chunk.choices[0].delta.content);
+    return acc + chunk.choices[0].delta.content;
   }, '');
 
   return toResponse(message, model, prompt);
 }
+
+import { registerCompletionHandler } from '../registry';
+registerCompletionHandler('ollama/', OllamaHandler);

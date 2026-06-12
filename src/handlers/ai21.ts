@@ -1,16 +1,12 @@
 import {
-  ConsistentResponseUsage,
   FinishReason,
   HandlerParams,
-  HandlerParamsNotStreaming,
-  HandlerParamsStreaming,
   ResultNotStreaming,
   ResultStreaming,
-  Role,
-  StreamingChunk,
 } from '../types';
 import { combinePrompts } from '../utils/combinePrompts';
 import { getUnixTimestamp } from '../utils/getUnixTimestamp';
+import { iterateSSEStream } from '../utils/sse';
 
 const FINISH_REASON_MAP: Record<string, FinishReason> = {
   length: 'length',
@@ -42,7 +38,11 @@ interface AI21Response {
   }[];
 }
 
-function toUsage(response: AI21Response): ConsistentResponseUsage {
+function toUsage(response: AI21Response): {
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+} {
   const promptTokens = response.prompt.tokens.length;
   const completionTokens = response.completions.reduce((acc, completion) => {
     return acc + completion.data.tokens.length;
@@ -54,30 +54,6 @@ function toUsage(response: AI21Response): ConsistentResponseUsage {
   };
 }
 
-// eslint-disable-next-line @typescript-eslint/require-await
-async function* toStream(
-  response: AI21Response,
-  model: string,
-): AsyncIterable<StreamingChunk> {
-  yield {
-    model: model,
-    created: getUnixTimestamp(),
-    usage: toUsage(response),
-    choices: [
-      {
-        delta: {
-          content: response.completions[0].data.text,
-          role: 'assistant',
-        },
-        finish_reason:
-          FINISH_REASON_MAP[response.completions[0].finishReason.reason] ??
-          'stop',
-        index: 0,
-      },
-    ],
-  };
-}
-
 function toResponse(response: AI21Response, model: string): ResultNotStreaming {
   const choices = response.completions.map((completion, i) => {
     return {
@@ -86,7 +62,7 @@ function toResponse(response: AI21Response, model: string): ResultNotStreaming {
       index: i,
       message: {
         content: completion.data.text,
-        role: 'assistant' as Role,
+        role: 'assistant',
       },
     };
   });
@@ -103,51 +79,64 @@ async function getAI21Response(
   prompt: string,
   baseUrl: string,
   apiKey: string,
+  stream?: boolean,
 ): Promise<Response> {
+  const body: Record<string, unknown> = { prompt };
+  if (stream) body.stream = true;
   return fetch(`${baseUrl}/studio/v1/${model}/complete`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
-      accept: 'application/json',
+      accept: stream ? 'text/event-stream' : 'application/json',
     },
-    body: JSON.stringify({
-      prompt,
-    }),
+    body: JSON.stringify(body),
   });
 }
 
-export async function AI21Handler(
-  params: HandlerParamsNotStreaming,
-): Promise<ResultNotStreaming>;
-
-export async function AI21Handler(
-  params: HandlerParamsStreaming,
-): Promise<ResultStreaming>;
-
-export async function AI21Handler(
-  params: HandlerParams,
-): Promise<ResultNotStreaming | ResultStreaming>;
+interface AI21StreamChunk {
+  text?: string;
+  finishReason?: { reason: string };
+  prompt?: { tokens: AI21GeneratedToken[] };
+}
 
 export async function AI21Handler(
   params: HandlerParams,
 ): Promise<ResultNotStreaming | ResultStreaming> {
   const baseUrl = params.baseUrl ?? 'https://api.ai21.com';
-  const apiKey = params.apiKey ?? process.env.AI21_API_KEY!;
+  const apiKey = params.apiKey ?? process.env.AI21_API_KEY;
+  if (!apiKey) throw new Error('AI21 requires an API key. Set AI21_API_KEY environment variable or pass apiKey in params.');
   const model = params.model;
   const prompt = combinePrompts(params.messages);
 
-  const res = await getAI21Response(model, prompt, baseUrl, apiKey);
+  const res = await getAI21Response(model, prompt, baseUrl, apiKey, params.stream ?? false);
 
   if (!res.ok) {
     throw new Error(`Received an error with code ${res.status} from AI21 API.`);
   }
 
-  const body = (await res.json()) as AI21Response;
-
   if (params.stream) {
-    return toStream(body, model);
+    return iterateSSEStream(res, (payload) => {
+      const parsed = JSON.parse(payload) as AI21StreamChunk;
+      return {
+        model,
+        created: getUnixTimestamp(),
+        choices: [
+          {
+            delta: { content: parsed.text ?? '', role: 'assistant' },
+            finish_reason: parsed.finishReason
+              ? (FINISH_REASON_MAP[parsed.finishReason.reason] ?? 'stop')
+              : null,
+            index: 0,
+          },
+        ],
+      };
+    });
   }
 
+  const body = (await res.json()) as AI21Response;
   return toResponse(body, model);
 }
+
+import { registerCompletionHandler } from '../registry';
+registerCompletionHandler('j2-', AI21Handler);

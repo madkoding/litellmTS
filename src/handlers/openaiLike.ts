@@ -17,3 +17,9 @@ export function createOpenAILikeHandler(config: OpenAILikeConfig): Handler {
     });
   };
 }
+
+import { OPENAI_LIKE_MAPPINGS } from '../mappings/openaiLike';
+import { registerCompletionHandler } from '../registry';
+for (const [prefix, config] of Object.entries(OPENAI_LIKE_MAPPINGS)) {
+  registerCompletionHandler(prefix, createOpenAILikeHandler(config));
+}

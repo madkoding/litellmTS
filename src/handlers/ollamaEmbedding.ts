@@ -1,4 +1,4 @@
-import { EmbeddingParams, EmbeddingResponse } from '../embedding';
+import { EmbeddingParams, EmbeddingResponse } from '../types';
 import { toEmbeddingUsage } from '../utils/toUsage';
 
 interface OllamaEmbeddingsResponseChunk {
@@ -32,7 +32,7 @@ export async function OllamaEmbeddingHandler(
   const input =
     typeof params.input === 'string'
       ? params.input
-      : params.input.reduce((acc, curr) => (acc += curr), '');
+      : params.input.reduce((acc, curr) => acc + curr, '');
   const response = await getOllamaResponse(model, input, baseUrl);
 
   if (!response.ok) {
@@ -48,3 +48,6 @@ export async function OllamaEmbeddingHandler(
     usage: toEmbeddingUsage(input),
   };
 }
+
+import { registerEmbeddingHandler } from '../registry';
+registerEmbeddingHandler('ollama/', OllamaEmbeddingHandler);

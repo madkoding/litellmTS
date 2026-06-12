@@ -1,7 +1,5 @@
 import {
   HandlerParams,
-  HandlerParamsNotStreaming,
-  HandlerParamsStreaming,
   ResultNotStreaming,
   ResultStreaming,
   type ConsistentResponseUsage,
@@ -15,6 +13,19 @@ const USER_AGENT = 'GitHubCopilotChat/0.35.0';
 const EDITOR_VERSION = 'vscode/1.107.0';
 const EDITOR_PLUGIN_VERSION = 'copilot-chat/0.35.0';
 const COPILOT_INTEGRATION_ID = 'vscode-chat';
+
+interface StreamChoice {
+  delta?: { content?: string | null; role?: string | null };
+  index?: number;
+  finish_reason?: string | null;
+}
+
+interface StreamResponse {
+  model?: string;
+  created?: number;
+  usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+  choices?: StreamChoice[];
+}
 
 function getAuthHeaders(token: string): Record<string, string> {
   return {
@@ -57,22 +68,22 @@ async function* toStreamingResponse(
 
     for (const line of lines) {
       const trimmed = line.trim();
-      if (!trimmed || !trimmed.startsWith('data: ')) continue;
+      if (!trimmed?.startsWith('data: ')) continue;
       const payload = trimmed.slice(6);
       if (payload === '[DONE]') return;
 
       try {
-        const parsed = JSON.parse(payload);
+        const parsed = JSON.parse(payload) as StreamResponse;
         yield {
           model: parsed.model,
           created: parsed.created,
           usage: toUsage(parsed),
-          choices: (parsed.choices ?? []).map((c: Record<string, unknown>) => ({
+          choices: (parsed.choices ?? []).map((c) => ({
             delta: {
-              content: (c.delta as Record<string, unknown>)?.content as string | null | undefined,
-              role: (c.delta as Record<string, unknown>)?.role as string | null | undefined,
+              content: c.delta?.content ?? null,
+              role: c.delta?.role ?? null,
             },
-            index: c.index as number,
+            index: c.index ?? 0,
             finish_reason: (c.finish_reason as FinishReason | null) ?? null,
           })),
         };
@@ -82,18 +93,6 @@ async function* toStreamingResponse(
     }
   }
 }
-
-export async function CopilotHandler(
-  params: HandlerParamsNotStreaming,
-): Promise<ResultNotStreaming>;
-
-export async function CopilotHandler(
-  params: HandlerParamsStreaming,
-): Promise<ResultStreaming>;
-
-export async function CopilotHandler(
-  params: HandlerParams,
-): Promise<ResultNotStreaming | ResultStreaming>;
 
 export async function CopilotHandler(
   params: HandlerParams,
@@ -152,7 +151,7 @@ export async function CopilotHandler(
 
   const data = (await response.json()) as Record<string, unknown>;
 
-  const choices = ((data.choices ?? []) as Array<Record<string, unknown>>).map(
+  const choices = ((data.choices ?? []) as Record<string, unknown>[]).map(
     (c) => ({
       index: c.index as number,
       finish_reason: (c.finish_reason as FinishReason | null) ?? null,
@@ -166,9 +165,12 @@ export async function CopilotHandler(
   const result: ResultNotStreaming = {
     created: (data.created as number) ?? getUnixTimestamp(),
     model: data.model as string | undefined,
-    usage: toUsage(data as { usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } }),
+    usage: toUsage(data),
     choices,
   };
 
   return result;
 }
+
+import { registerCompletionHandler } from '../registry';
+registerCompletionHandler('copilot/', CopilotHandler);

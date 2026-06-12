@@ -1,7 +1,14 @@
+/* eslint-disable no-console */
 import * as readline from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
 import { setAnthropicCredentials } from './store';
 
+/**
+ * Interactive CLI prompt to configure and validate an Anthropic API key.
+ *
+ * Prompts the user to paste a key, validates it with a lightweight API call,
+ * and persists to `~/.litellm/auth.json`.
+ */
 export async function loginAnthropic(): Promise<void> {
   console.log('\n🔑 Configurando clave API de Anthropic...\n');
   console.log('  1. Abre https://console.anthropic.com/ en tu navegador');

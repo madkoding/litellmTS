@@ -7,8 +7,6 @@ import type {
 
 import {
   HandlerParams,
-  HandlerParamsNotStreaming,
-  HandlerParamsStreaming,
   Message,
   ResultNotStreaming,
   ResultStreaming,
@@ -99,21 +97,10 @@ async function* toStreamingResponse(
 }
 
 export async function GeminiHandler(
-  params: HandlerParamsNotStreaming,
-): Promise<ResultNotStreaming>;
-
-export async function GeminiHandler(
-  params: HandlerParamsStreaming,
-): Promise<ResultStreaming>;
-
-export async function GeminiHandler(
-  params: HandlerParams,
-): Promise<ResultNotStreaming | ResultStreaming>;
-
-export async function GeminiHandler(
   params: HandlerParams,
 ): Promise<ResultNotStreaming | ResultStreaming> {
-  const apiKey = params.apiKey ?? process.env.GEMINI_API_KEY!;
+  const apiKey = params.apiKey ?? process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error('Gemini requires an API key. Set GEMINI_API_KEY environment variable or pass apiKey in params.');
   const modelName = params.model.startsWith('gemini/')
     ? params.model.slice(7)
     : params.model;
@@ -139,3 +126,6 @@ export async function GeminiHandler(
   const result = await model.generateContent({ contents });
   return toResponse(result.response, modelName);
 }
+
+import { registerCompletionHandler } from '../registry';
+registerCompletionHandler('gemini/', GeminiHandler);

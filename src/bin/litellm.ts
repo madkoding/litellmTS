@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable no-console, @typescript-eslint/no-unsafe-return */
 
 import { readFileSync } from 'fs';
 import { resolve } from 'path';

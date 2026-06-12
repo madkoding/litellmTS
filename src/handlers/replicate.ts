@@ -1,12 +1,10 @@
 import Replicate, { type Prediction } from 'replicate';
-import EventSource from 'eventsource';
+import { EventSource } from 'eventsource';
 
 import {
   HandlerParams,
-  HandlerParamsNotStreaming,
   ResultStreaming,
   ResultNotStreaming,
-  HandlerParamsStreaming,
 } from '../types';
 import { combinePrompts } from '../utils/combinePrompts';
 import { toUsage } from '../utils/toUsage';
@@ -27,7 +25,7 @@ async function handleNonStreamingPrediction(
 ): Promise<ResultNotStreaming> {
   const pred = await replicate.wait(prediction, {});
   const output: string = (pred.output as string[]).reduce(
-    (acc, curr) => (acc += curr),
+    (acc, curr) => acc + curr,
     '',
   );
   return {
@@ -54,7 +52,7 @@ async function* handleStreamingPrediction(
     throw new Error('Prediction does not support streaming');
   }
 
-  const source = new EventSource(prediction.urls.stream as string, {
+  const source = new EventSource(prediction.urls.stream, {
     withCredentials: true,
   });
 
@@ -78,7 +76,7 @@ async function* handleStreamingPrediction(
   while (!done) {
     await promise;
     await sleep(500);
-    const combined = results.reduce((acc, curr) => (acc += curr), '');
+    const combined = results.reduce((acc, curr) => acc + curr, '');
     yield {
       created: getUnixTimestamp(),
       usage: toUsage(prompt, combined),
@@ -96,18 +94,6 @@ async function* handleStreamingPrediction(
     results = [];
   }
 }
-
-export async function ReplicateHandler(
-  params: HandlerParamsNotStreaming,
-): Promise<ResultNotStreaming>;
-
-export async function ReplicateHandler(
-  params: HandlerParamsStreaming,
-): Promise<ResultStreaming>;
-
-export async function ReplicateHandler(
-  params: HandlerParams,
-): Promise<ResultNotStreaming | ResultStreaming>;
 
 export async function ReplicateHandler(
   params: HandlerParams,
@@ -132,3 +118,6 @@ export async function ReplicateHandler(
   }
   return handleNonStreamingPrediction(prompt, prediction, replicate);
 }
+
+import { registerCompletionHandler } from '../registry';
+registerCompletionHandler('replicate/', ReplicateHandler);

@@ -6,3 +6,6 @@ export {
   getProviderCredentials,
   setProviderCredentials,
 } from './store';
+
+/** @deprecated Import named functions directly from '@litellmts/core' */
+export type { CopilotCredentials, AnthropicCredentials } from './store';

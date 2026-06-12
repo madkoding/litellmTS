@@ -101,7 +101,9 @@ export async function OllamaHandler(
   params: HandlerParams,
 ): Promise<ResultNotStreaming | ResultStreaming> {
   const baseUrl = params.baseUrl ?? 'http://127.0.0.1:11434';
-  const model = params.model.split('ollama/')[1];
+  const model = params.model.startsWith('ollama/')
+    ? params.model.slice(7)
+    : params.model;
   const prompt = combinePrompts(params.messages);
 
   const res = await getOllamaResponse(model, prompt, baseUrl);

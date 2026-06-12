@@ -22,6 +22,7 @@ async function handleNonStreamingPrediction(
   prompt: string,
   prediction: Prediction,
   replicate: Replicate,
+  modelName: string,
 ): Promise<ResultNotStreaming> {
   const pred = await replicate.wait(prediction, {});
   const output: string = (pred.output as string[]).reduce(
@@ -29,6 +30,7 @@ async function handleNonStreamingPrediction(
     '',
   );
   return {
+    model: modelName,
     usage: toUsage(prompt, output),
     created: getUnixTimestamp(),
     choices: [
@@ -102,21 +104,31 @@ export async function ReplicateHandler(
   const replicate = new Replicate({
     auth: apiKey,
   });
-  const model = params.model.split('replicate/')[1];
-  const version = model.split(':')[1];
+  const modelName = params.model.startsWith('replicate/')
+    ? params.model.slice(10)
+    : params.model;
+  const version = modelName.split(':')[1];
+  if (!version) {
+    throw new Error(`Invalid Replicate model format: ${params.model}. Expected format: replicate/<owner>/<name>:<version>`);
+  }
 
   const prompt = combinePrompts(params.messages);
-  const prediction = await replicate.predictions.create({
-    version: version,
-    input: {
-      prompt,
-    },
-  });
+  let prediction: Prediction;
+  try {
+    prediction = await replicate.predictions.create({
+      version: version,
+      input: {
+        prompt,
+      },
+    });
+  } catch (err) {
+    throw new Error(`Replicate API error: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
+  }
 
   if (params.stream) {
     return handleStreamingPrediction(prompt, prediction);
   }
-  return handleNonStreamingPrediction(prompt, prediction, replicate);
+  return handleNonStreamingPrediction(prompt, prediction, replicate, modelName);
 }
 
 import { registerCompletionHandler } from '../registry';

@@ -36,7 +36,9 @@ export async function DeepInfraHandler(
   const baseUrl = params.baseUrl ?? 'https://api.deepinfra.com';
   const apiKey = params.apiKey ?? process.env.DEEPINFRA_API_KEY;
   if (!apiKey) throw new Error('DeepInfra requires an API key. Set DEEPINFRA_API_KEY environment variable or pass apiKey in params.');
-  const model = params.model.split('deepinfra/')[1];
+  const model = params.model.startsWith('deepinfra/')
+    ? params.model.slice(10)
+    : params.model;
 
   const res = await getDeepInfraResponse(
     model,

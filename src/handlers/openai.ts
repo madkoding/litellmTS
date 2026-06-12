@@ -58,19 +58,29 @@ export async function OpenAIHandler(
   const messages = toOpenAIMessages(completionsParams.messages);
 
   if (params.stream) {
-    const response = await openai.chat.completions.create({
-      ...completionsParams,
-      stream: true as const,
-      messages,
-    }) as unknown as AsyncIterable<ChatCompletionChunk>;
+    let response: AsyncIterable<ChatCompletionChunk>;
+    try {
+      response = await openai.chat.completions.create({
+        ...completionsParams,
+        stream: true,
+        messages,
+      });
+    } catch (err) {
+      throw new Error(`OpenAI API error: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
+    }
     return toStreamingResponse(response);
   }
 
-  const response = await openai.chat.completions.create({
-    ...completionsParams,
-    stream: false as const,
-    messages,
-  }) as unknown as ChatCompletion;
+  let response: ChatCompletion;
+  try {
+    response = await openai.chat.completions.create({
+      ...completionsParams,
+      stream: false,
+      messages,
+    });
+  } catch (err) {
+    throw new Error(`OpenAI API error: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
+  }
 
   const result: ResultNotStreaming = {
     created: response.created,

@@ -74,12 +74,13 @@ function toResponse(
 
 async function* toStreamingResponse(
   stream: AsyncGenerator<GenerateContentResponse>,
+  model: string,
 ): ResultStreaming {
   for await (const chunk of stream) {
     const candidate = chunk.candidates?.[0];
     const deltaContent = candidate?.content.parts.map((p) => 'text' in p ? p.text : '').join('') ?? '';
     yield {
-      model: undefined,
+      model,
       created: getUnixTimestamp(),
       usage: toUsage(chunk.usageMetadata),
       choices: [
@@ -118,13 +119,17 @@ export async function GeminiHandler(
 
   const contents = toGeminiContent(params.messages);
 
-  if (params.stream) {
-    const result = await model.generateContentStream({ contents });
-    return toStreamingResponse(result.stream);
-  }
+  try {
+    if (params.stream) {
+      const result = await model.generateContentStream({ contents });
+      return toStreamingResponse(result.stream, modelName);
+    }
 
-  const result = await model.generateContent({ contents });
-  return toResponse(result.response, modelName);
+    const result = await model.generateContent({ contents });
+    return toResponse(result.response, modelName);
+  } catch (err) {
+    throw new Error(`Gemini API error: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
+  }
 }
 
 import { registerCompletionHandler } from '../registry';

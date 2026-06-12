@@ -11,7 +11,11 @@ export async function OpenAIEmbeddingHandler(
     apiKey: apiKey,
     baseURL: baseUrl,
   });
-  return openai.embeddings.create({ input: params.input, model: params.model });
+  try {
+    return await openai.embeddings.create({ input: params.input, model: params.model });
+  } catch (err) {
+    throw new Error(`OpenAI embedding API error: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
+  }
 }
 
 import { registerEmbeddingHandler } from '../registry';

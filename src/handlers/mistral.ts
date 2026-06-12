@@ -37,7 +37,9 @@ export async function MistralHandler(
   const baseUrl = params.baseUrl ?? 'https://api.mistral.ai';
   const apiKey = params.apiKey ?? process.env.MISTRAL_API_KEY;
   if (!apiKey) throw new Error('Mistral requires an API key. Set MISTRAL_API_KEY environment variable or pass apiKey in params.');
-  const model = params.model.split('mistral/')[1];
+  const model = params.model.startsWith('mistral/')
+    ? params.model.slice(8)
+    : params.model;
 
   const res = await getMistralResponse(
     model,

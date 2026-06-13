@@ -22,8 +22,8 @@ describe('OllamaHandler', () => {
   describe('non-streaming', () => {
     it('returns formatted result from streamed chunks', async () => {
       const responseChunks = [
-        JSON.stringify({ model: 'llama2', created_at: '', response: 'Hello ', done: false }),
-        JSON.stringify({ model: 'llama2', created_at: '', response: 'World!', done: true }),
+        JSON.stringify({ model: 'llama2', created_at: '', message: { role: 'assistant', content: 'Hello ' }, done: false }),
+        JSON.stringify({ model: 'llama2', created_at: '', message: { role: 'assistant', content: 'World!' }, done: true }),
       ].join('\n');
 
       mockFetch.mockResolvedValueOnce(createMockResponse(responseChunks));
@@ -33,6 +33,13 @@ describe('OllamaHandler', () => {
         messages: [{ role: 'user', content: 'test' }],
         stream: false,
       });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/chat'),
+        expect.objectContaining({
+          body: expect.stringContaining('"messages":[{"role":"user","content":"Human: test"}]'),
+        }),
+      );
 
       expect(result).toMatchObject({
         model: 'llama2',
@@ -44,8 +51,8 @@ describe('OllamaHandler', () => {
   describe('streaming', () => {
     it('yields chunks incrementally', async () => {
       const responseChunks = [
-        JSON.stringify({ model: 'llama2', created_at: '', response: 'Hello ', done: false }),
-        JSON.stringify({ model: 'llama2', created_at: '', response: 'World!', done: true }),
+        JSON.stringify({ model: 'llama2', created_at: '', message: { role: 'assistant', content: 'Hello ' }, done: false }),
+        JSON.stringify({ model: 'llama2', created_at: '', message: { role: 'assistant', content: 'World!' }, done: true }),
       ].join('\n');
 
       mockFetch.mockResolvedValueOnce(createMockResponse(responseChunks));
@@ -55,6 +62,13 @@ describe('OllamaHandler', () => {
         messages: [{ role: 'user', content: 'test' }],
         stream: true,
       });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/chat'),
+        expect.objectContaining({
+          body: expect.stringContaining('"messages":[{"role":"user","content":"Human: test"}]'),
+        }),
+      );
 
       const chunks: unknown[] = [];
       for await (const chunk of result as AsyncIterable<unknown>) {

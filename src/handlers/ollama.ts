@@ -11,7 +11,7 @@ import { toUsage } from '../utils/toUsage';
 interface OllamaResponseChunk {
   model: string;
   created_at: string;
-  response: string;
+  message: { role: string; content: string };
   done: boolean;
 }
 
@@ -23,10 +23,10 @@ function toStreamingChunk(
   return {
     model: model,
     created: getUnixTimestamp(),
-    usage: toUsage(prompt, ollamaResponse.response),
+    usage: toUsage(prompt, ollamaResponse.message.content),
     choices: [
       {
-        delta: { content: ollamaResponse.response, role: 'assistant' },
+        delta: { content: ollamaResponse.message.content, role: 'assistant' },
         finish_reason: 'stop',
         index: 0,
       },
@@ -84,15 +84,17 @@ async function getOllamaResponse(
   model: string,
   prompt: string,
   baseUrl: string,
+  stream: boolean,
 ): Promise<Response> {
-  return fetch(`${baseUrl}/api/generate`, {
+  return fetch(`${baseUrl}/api/chat`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
       model,
-      prompt,
+      messages: [{ role: 'user', content: prompt }],
+      stream,
     }),
   });
 }
@@ -106,7 +108,7 @@ export async function OllamaHandler(
     : params.model;
   const prompt = combinePrompts(params.messages);
 
-  const res = await getOllamaResponse(model, prompt, baseUrl);
+  const res = await getOllamaResponse(model, prompt, baseUrl, !!params.stream);
 
   if (!res.ok) {
     throw new Error(

@@ -85,12 +85,15 @@ async function getOllamaResponse(
   prompt: string,
   baseUrl: string,
   stream: boolean,
+  apiKey?: string,
 ): Promise<Response> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
   return fetch(`${baseUrl}/api/chat`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers,
     body: JSON.stringify({
       model,
       messages: [{ role: 'user', content: prompt }],
@@ -108,7 +111,7 @@ export async function OllamaHandler(
     : params.model;
   const prompt = combinePrompts(params.messages);
 
-  const res = await getOllamaResponse(model, prompt, baseUrl, !!params.stream);
+  const res = await getOllamaResponse(model, prompt, baseUrl, !!params.stream, params.apiKey);
 
   if (!res.ok) {
     throw new Error(
@@ -139,12 +142,14 @@ interface OllamaTag {
   name: string;
 }
 
-registerModelProvider('ollama', async ({ baseUrl } = {}) => {
+registerModelProvider('ollama', async ({ baseUrl, apiKey } = {}) => {
   const url = baseUrl ?? 'http://127.0.0.1:11434';
-  const res = await fetch(`${url.replace(/\/+$/, '')}/api/tags`);
+  const headers: Record<string, string> = {};
+  if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+  const res = await fetch(`${url.replace(/\/+$/, '')}/api/tags`, { headers });
   if (!res.ok) return [];
   const { models } = (await res.json()) as { models: OllamaTag[] };
-  return (models ?? []).map((m) => ({ id: m.name, provider: 'ollama' }));
+  return (models ?? []).map((m) => ({ id: m.name.replace(/-cloud$/, ''), provider: 'ollama' }));
 });
 
 import { registerCompletionHandler } from '../registry';

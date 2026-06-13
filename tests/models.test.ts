@@ -27,7 +27,7 @@ describe('listModels fallback chain', () => {
       const result = await listModels('ollama', { baseUrl: 'http://localhost:11434' });
 
       expect(mockFetch).toHaveBeenCalledTimes(1);
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:11434/api/tags');
+      expect(mockFetch).toHaveBeenCalledWith('http://localhost:11434/api/tags', { headers: {} });
       expect(result).toEqual([
         { id: 'llama3:8b', provider: 'ollama' },
         { id: 'mistral:7b', provider: 'ollama' },
@@ -48,7 +48,7 @@ describe('listModels fallback chain', () => {
       });
 
       expect(mockFetch).toHaveBeenCalledTimes(2);
-      expect(mockFetch).toHaveBeenNthCalledWith(1, 'https://api.groq.com/openai/v1/api/tags');
+      expect(mockFetch).toHaveBeenNthCalledWith(1, 'https://api.groq.com/openai/v1/api/tags', { headers: { Authorization: 'Bearer test-key' } });
       expect(mockFetch).toHaveBeenNthCalledWith(2, 'https://api.groq.com/openai/v1/models', expect.objectContaining({
         headers: expect.objectContaining({ Authorization: 'Bearer test-key' }),
       }));
@@ -156,7 +156,7 @@ describe('listModels fallback chain', () => {
 
       await listModels('ollama', { baseUrl: 'http://localhost:11434/' });
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:11434/api/tags');
+      expect(mockFetch).toHaveBeenCalledWith('http://localhost:11434/api/tags', { headers: {} });
     });
   });
 });
@@ -169,5 +169,57 @@ describe('listProviders', () => {
       expect(p).toHaveProperty('name');
       expect(p).toHaveProperty('hasModelList', true);
     });
+  });
+});
+
+describe('Ollama tags with auth and -cloud suffix', () => {
+  beforeEach(() => {
+    clearModelCache();
+    mockFetch.mockReset();
+  });
+  it('should send Authorization header when apiKey is provided', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        models: [{ name: 'gpt-oss:120b-cloud' }, { name: 'deepseek-v4-flash-cloud' }],
+      }),
+    });
+
+    const result = await listModels('ollama', {
+      baseUrl: 'https://ollama.com',
+      apiKey: 'ollama-key-123',
+    });
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      'https://ollama.com/api/tags',
+      expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: 'Bearer ollama-key-123' }),
+      }),
+    );
+    expect(result).toEqual([
+      { id: 'gpt-oss:120b', provider: 'ollama' },
+      { id: 'deepseek-v4-flash', provider: 'ollama' },
+    ]);
+  });
+
+  it('should strip -cloud suffix from model names', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        models: [
+          { name: 'llama3:8b' },
+          { name: 'gpt-oss:120b-cloud' },
+          { name: 'deepseek-v4-flash-cloud' },
+        ],
+      }),
+    });
+
+    const result = await listModels('ollama', { baseUrl: 'http://localhost:11434' });
+
+    expect(result).toEqual([
+      { id: 'llama3:8b', provider: 'ollama' },
+      { id: 'gpt-oss:120b', provider: 'ollama' },
+      { id: 'deepseek-v4-flash', provider: 'ollama' },
+    ]);
   });
 });

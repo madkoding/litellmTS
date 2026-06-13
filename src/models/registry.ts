@@ -18,13 +18,15 @@ interface OpenAIModel {
   id: string;
 }
 
-async function tryOllamaTags(baseUrl: string, provider: string): Promise<ModelInfo[] | null> {
+async function tryOllamaTags(baseUrl: string, provider: string, apiKey?: string): Promise<ModelInfo[] | null> {
   try {
-    const res = await fetch(`${baseUrl}/api/tags`);
+    const headers: Record<string, string> = {};
+    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+    const res = await fetch(`${baseUrl}/api/tags`, { headers });
     if (!res.ok) return null;
     const { models } = (await res.json()) as { models: TagsModel[] };
     if (!Array.isArray(models)) return null;
-    return models.map((m) => ({ id: m.name, provider }));
+    return models.map((m) => ({ id: m.name.replace(/-cloud$/, ''), provider }));
   } catch {
     return null;
   }
@@ -56,7 +58,7 @@ export async function listModels(
   if (opts?.baseUrl) {
     const baseUrl = opts.baseUrl.replace(/\/+$/, '');
 
-    data = await tryOllamaTags(baseUrl, provider);
+    data = await tryOllamaTags(baseUrl, provider, opts.apiKey);
     if (!data || data.length === 0) {
       data = await tryOpenAIModels(baseUrl, provider, opts.apiKey);
     }

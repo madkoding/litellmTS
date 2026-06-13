@@ -79,4 +79,48 @@ describe('OllamaHandler', () => {
       expect(chunks[1]).toMatchObject({ choices: [{ delta: { content: 'World!' } }] });
     });
   });
+
+  describe('cloud', () => {
+    it('sends Authorization header when apiKey is provided', async () => {
+      const responseChunks = [
+        JSON.stringify({ model: 'gpt-oss:120b', created_at: '', message: { role: 'assistant', content: 'Hello' }, done: true }),
+      ].join('\n');
+
+      mockFetch.mockResolvedValueOnce(createMockResponse(responseChunks));
+
+      await OllamaHandler({
+        model: 'ollama/gpt-oss:120b',
+        messages: [{ role: 'user', content: 'hi' }],
+        stream: false,
+        apiKey: 'ollama-key-123',
+        baseUrl: 'https://ollama.com',
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://ollama.com/api/chat',
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            Authorization: 'Bearer ollama-key-123',
+          }),
+        }),
+      );
+    });
+
+    it('does not send Authorization header when no apiKey', async () => {
+      const responseChunks = [
+        JSON.stringify({ model: 'llama2', created_at: '', message: { role: 'assistant', content: 'Hello' }, done: true }),
+      ].join('\n');
+
+      mockFetch.mockResolvedValueOnce(createMockResponse(responseChunks));
+
+      await OllamaHandler({
+        model: 'ollama/llama2',
+        messages: [{ role: 'user', content: 'hi' }],
+        stream: false,
+      });
+
+      const callHeaders = mockFetch.mock.calls[0][1].headers;
+      expect(callHeaders.Authorization).toBeUndefined();
+    });
+  });
 });

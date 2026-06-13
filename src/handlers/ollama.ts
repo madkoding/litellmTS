@@ -4,7 +4,6 @@ import {
   ResultStreaming,
   StreamingChunk,
 } from '../types';
-import { combinePrompts } from '../utils/combinePrompts';
 import { getUnixTimestamp } from '../utils/getUnixTimestamp';
 import { toUsage } from '../utils/toUsage';
 
@@ -90,7 +89,7 @@ function resolveOllamaBaseUrl(apiKey?: string, baseUrl?: string): string {
 
 async function getOllamaResponse(
   model: string,
-  prompt: string,
+  messages: Array<{ role: string; content: string }>,
   baseUrl: string,
   stream: boolean,
   apiKey?: string,
@@ -106,7 +105,7 @@ async function getOllamaResponse(
     headers,
     body: JSON.stringify({
       model,
-      messages: [{ role: 'user', content: prompt }],
+      messages,
       stream,
     }),
   });
@@ -123,9 +122,15 @@ export async function OllamaHandler(
   if (apiKey && !model.endsWith('-cloud')) {
     model = model + '-cloud';
   }
-  const prompt = combinePrompts(params.messages);
+  const messages = params.messages.map((m) => ({
+    role: m.role,
+    content: m.content || '',
+  }));
+  const prompt = params.messages
+    .map((m) => `${m.role === 'assistant' ? 'Assistant' : m.role === 'system' ? 'System' : 'Human'}: ${m.content ?? ''}`)
+    .join('\n\n');
 
-  const res = await getOllamaResponse(model, prompt, params.baseUrl ?? '', !!params.stream, params.apiKey);
+  const res = await getOllamaResponse(model, messages, params.baseUrl ?? '', !!params.stream, params.apiKey);
 
   if (!res.ok) {
     throw new Error(

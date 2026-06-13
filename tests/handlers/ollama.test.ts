@@ -37,7 +37,7 @@ describe('OllamaHandler', () => {
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining('/api/chat'),
         expect.objectContaining({
-          body: expect.stringContaining('"messages":[{"role":"user","content":"Human: test"}]'),
+          body: expect.stringContaining('"messages":[{"role":"user","content":"test"}]'),
         }),
       );
 
@@ -66,7 +66,7 @@ describe('OllamaHandler', () => {
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining('/api/chat'),
         expect.objectContaining({
-          body: expect.stringContaining('"messages":[{"role":"user","content":"Human: test"}]'),
+          body: expect.stringContaining('"messages":[{"role":"user","content":"test"}]'),
         }),
       );
 

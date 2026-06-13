@@ -10,6 +10,40 @@ export function registerModelProvider(provider: string, fetcher: ModelFetcher): 
   fetchers.set(provider, fetcher);
 }
 
+interface TagsModel {
+  name: string;
+}
+  
+interface OpenAIModel {
+  id: string;
+}
+
+async function tryOllamaTags(baseUrl: string, provider: string): Promise<ModelInfo[] | null> {
+  try {
+    const res = await fetch(`${baseUrl}/api/tags`);
+    if (!res.ok) return null;
+    const { models } = (await res.json()) as { models: TagsModel[] };
+    if (!Array.isArray(models)) return null;
+    return models.map((m) => ({ id: m.name, provider }));
+  } catch {
+    return null;
+  }
+}
+
+async function tryOpenAIModels(baseUrl: string, provider: string, apiKey?: string): Promise<ModelInfo[] | null> {
+  try {
+    const headers: Record<string, string> = {};
+    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+    const res = await fetch(`${baseUrl}/models`, { headers });
+    if (!res.ok) return null;
+    const { data } = (await res.json()) as { data: OpenAIModel[] };
+    if (!Array.isArray(data)) return null;
+    return data.map((m) => ({ id: m.id, provider }));
+  } catch {
+    return null;
+  }
+}
+
 export async function listModels(
   provider: string,
   opts?: { apiKey?: string; baseUrl?: string },
@@ -17,10 +51,23 @@ export async function listModels(
   const cached = cache.get(provider);
   if (cached && cached.expires > Date.now()) return cached.data;
 
-  const fetcher = fetchers.get(provider);
-  if (!fetcher) throw new Error(`Provider '${provider}' not found.`);
+  let data: ModelInfo[] | null = null;
 
-  const data = await fetcher(opts);
+  if (opts?.baseUrl) {
+    const baseUrl = opts.baseUrl.replace(/\/+$/, '');
+
+    data = await tryOllamaTags(baseUrl, provider);
+    if (!data || data.length === 0) {
+      data = await tryOpenAIModels(baseUrl, provider, opts.apiKey);
+    }
+  }
+
+  if (!data || data.length === 0) {
+    const fetcher = fetchers.get(provider);
+    if (!fetcher) throw new Error(`Provider '${provider}' not found.`);
+    data = await fetcher(opts);
+  }
+
   cache.set(provider, { data, expires: Date.now() + CACHE_TTL });
   return data;
 }

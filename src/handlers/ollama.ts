@@ -133,11 +133,16 @@ export async function OllamaHandler(
 
 import { registerModelProvider } from '../models/registry';
 
-registerModelProvider('ollama', async () => {
-  const res = await fetch('http://127.0.0.1:11434/api/tags');
+interface OllamaTag {
+  name: string;
+}
+
+registerModelProvider('ollama', async ({ baseUrl } = {}) => {
+  const url = baseUrl ?? 'http://127.0.0.1:11434';
+  const res = await fetch(`${url.replace(/\/+$/, '')}/api/tags`);
   if (!res.ok) return [];
-  const { models } = await res.json();
-  return (models ?? []).map((m: any) => ({ id: m.name, provider: 'ollama' }));
+  const { models } = (await res.json()) as { models: OllamaTag[] };
+  return (models ?? []).map((m) => ({ id: m.name, provider: 'ollama' }));
 });
 
 import { registerCompletionHandler } from '../registry';

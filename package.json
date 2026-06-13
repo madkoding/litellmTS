@@ -1,6 +1,6 @@
 {
   "name": "litellmts-core",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "TypeScript implementation of LiteLLM — unified interface for 45+ LLM providers",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

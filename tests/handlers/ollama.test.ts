@@ -11,6 +11,18 @@ function createMockResponse(text: string, ok = true): Response {
       controller.close();
     },
   });
+  const parsed = JSON.parse(text);
+  return { ok, body: bodyStream, status: ok ? 200 : 500, json: async () => parsed } as unknown as Response;
+}
+
+function createStreamingMockResponse(text: string, ok = true): Response {
+  const encoder = new TextEncoder();
+  const bodyStream = new ReadableStream({
+    async start(controller) {
+      controller.enqueue(encoder.encode(text));
+      controller.close();
+    },
+  });
   return { ok, body: bodyStream, status: ok ? 200 : 500 } as unknown as Response;
 }
 
@@ -20,13 +32,10 @@ describe('OllamaHandler', () => {
   });
 
   describe('non-streaming', () => {
-    it('returns formatted result from streamed chunks', async () => {
-      const responseChunks = [
-        JSON.stringify({ model: 'llama2', created_at: '', message: { role: 'assistant', content: 'Hello ' }, done: false }),
-        JSON.stringify({ model: 'llama2', created_at: '', message: { role: 'assistant', content: 'World!' }, done: true }),
-      ].join('\n');
+    it('returns formatted result from single JSON response', async () => {
+      const responseBody = JSON.stringify({ model: 'llama2', created_at: '', message: { role: 'assistant', content: 'Hello World!' }, done: true });
 
-      mockFetch.mockResolvedValueOnce(createMockResponse(responseChunks));
+      mockFetch.mockResolvedValueOnce(createMockResponse(responseBody));
 
       const result = await OllamaHandler({
         model: 'ollama/llama2',
@@ -55,7 +64,7 @@ describe('OllamaHandler', () => {
         JSON.stringify({ model: 'llama2', created_at: '', message: { role: 'assistant', content: 'World!' }, done: true }),
       ].join('\n');
 
-      mockFetch.mockResolvedValueOnce(createMockResponse(responseChunks));
+      mockFetch.mockResolvedValueOnce(createStreamingMockResponse(responseChunks));
 
       const result = await OllamaHandler({
         model: 'ollama/llama2',
@@ -86,10 +95,8 @@ describe('OllamaHandler', () => {
     });
 
     it('uses localhost:11434 by default when no apiKey', async () => {
-      const responseChunks = [
-        JSON.stringify({ model: 'llama2', created_at: '', message: { role: 'assistant', content: 'Hello' }, done: true }),
-      ].join('\n');
-      mockFetch.mockResolvedValueOnce(createMockResponse(responseChunks));
+      const responseBody = JSON.stringify({ model: 'llama2', created_at: '', message: { role: 'assistant', content: 'Hello' }, done: true });
+      mockFetch.mockResolvedValueOnce(createMockResponse(responseBody));
 
       await OllamaHandler({
         model: 'ollama/llama2',
@@ -102,10 +109,8 @@ describe('OllamaHandler', () => {
     });
 
     it('uses https://ollama.com when apiKey is provided without baseUrl', async () => {
-      const responseChunks = [
-        JSON.stringify({ model: 'gpt-oss:120b', created_at: '', message: { role: 'assistant', content: 'Hello' }, done: true }),
-      ].join('\n');
-      mockFetch.mockResolvedValueOnce(createMockResponse(responseChunks));
+      const responseBody = JSON.stringify({ model: 'gpt-oss:120b', created_at: '', message: { role: 'assistant', content: 'Hello' }, done: true });
+      mockFetch.mockResolvedValueOnce(createMockResponse(responseBody));
 
       await OllamaHandler({
         model: 'ollama/gpt-oss:120b',
@@ -120,10 +125,8 @@ describe('OllamaHandler', () => {
 
     it('uses https://ollama.com when OLLAMA_API_KEY env is set', async () => {
       process.env.OLLAMA_API_KEY = 'env-key-456';
-      const responseChunks = [
-        JSON.stringify({ model: 'gpt-oss:120b', created_at: '', message: { role: 'assistant', content: 'Hello' }, done: true }),
-      ].join('\n');
-      mockFetch.mockResolvedValueOnce(createMockResponse(responseChunks));
+      const responseBody = JSON.stringify({ model: 'gpt-oss:120b', created_at: '', message: { role: 'assistant', content: 'Hello' }, done: true });
+      mockFetch.mockResolvedValueOnce(createMockResponse(responseBody));
 
       await OllamaHandler({
         model: 'ollama/gpt-oss:120b',
@@ -138,10 +141,8 @@ describe('OllamaHandler', () => {
     });
 
     it('strips /api suffix from baseUrl to avoid duplication', async () => {
-      const responseChunks = [
-        JSON.stringify({ model: 'llama2', created_at: '', message: { role: 'assistant', content: 'Hello' }, done: true }),
-      ].join('\n');
-      mockFetch.mockResolvedValueOnce(createMockResponse(responseChunks));
+      const responseBody = JSON.stringify({ model: 'llama2', created_at: '', message: { role: 'assistant', content: 'Hello' }, done: true });
+      mockFetch.mockResolvedValueOnce(createMockResponse(responseBody));
 
       await OllamaHandler({
         model: 'ollama/llama2',
@@ -156,10 +157,8 @@ describe('OllamaHandler', () => {
     });
 
     it('strips trailing slash from baseUrl', async () => {
-      const responseChunks = [
-        JSON.stringify({ model: 'llama2', created_at: '', message: { role: 'assistant', content: 'Hello' }, done: true }),
-      ].join('\n');
-      mockFetch.mockResolvedValueOnce(createMockResponse(responseChunks));
+      const responseBody = JSON.stringify({ model: 'llama2', created_at: '', message: { role: 'assistant', content: 'Hello' }, done: true });
+      mockFetch.mockResolvedValueOnce(createMockResponse(responseBody));
 
       await OllamaHandler({
         model: 'ollama/llama2',
@@ -179,11 +178,9 @@ describe('OllamaHandler', () => {
     });
 
     it('sends Authorization header when apiKey is provided', async () => {
-      const responseChunks = [
-        JSON.stringify({ model: 'gpt-oss:120b', created_at: '', message: { role: 'assistant', content: 'Hello' }, done: true }),
-      ].join('\n');
+      const responseBody = JSON.stringify({ model: 'gpt-oss:120b', created_at: '', message: { role: 'assistant', content: 'Hello' }, done: true });
 
-      mockFetch.mockResolvedValueOnce(createMockResponse(responseChunks));
+      mockFetch.mockResolvedValueOnce(createMockResponse(responseBody));
 
       await OllamaHandler({
         model: 'ollama/gpt-oss:120b',
@@ -204,11 +201,9 @@ describe('OllamaHandler', () => {
     });
 
     it('does not send Authorization header when no apiKey', async () => {
-      const responseChunks = [
-        JSON.stringify({ model: 'llama2', created_at: '', message: { role: 'assistant', content: 'Hello' }, done: true }),
-      ].join('\n');
+      const responseBody = JSON.stringify({ model: 'llama2', created_at: '', message: { role: 'assistant', content: 'Hello' }, done: true });
 
-      mockFetch.mockResolvedValueOnce(createMockResponse(responseChunks));
+      mockFetch.mockResolvedValueOnce(createMockResponse(responseBody));
 
       await OllamaHandler({
         model: 'ollama/llama2',

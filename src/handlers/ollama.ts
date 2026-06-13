@@ -142,17 +142,8 @@ export async function OllamaHandler(
     return iterateResponse(res, model, prompt);
   }
 
-  const chunks: StreamingChunk[] = [];
-
-  for await (const chunk of iterateResponse(res, model, prompt)) {
-    chunks.push(chunk);
-  }
-
-  const message = chunks.reduce((acc: string, chunk: StreamingChunk) => {
-    return acc + chunk.choices[0].delta.content;
-  }, '');
-
-  return toResponse(message, model, prompt);
+  const data = (await res.json()) as OllamaResponseChunk;
+  return toResponse(data.message.content, model, prompt);
 }
 
 import { registerModelProvider } from '../models/registry';

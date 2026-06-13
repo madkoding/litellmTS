@@ -81,7 +81,7 @@ async function* iterateResponse(
 }
 
 function resolveOllamaBaseUrl(apiKey?: string, baseUrl?: string): string {
-  if (baseUrl) return baseUrl.replace(/\/api\/?$/, '').replace(/\/+$/, '');
+  if (baseUrl) return baseUrl.replace(/\/api\/?$/, '').replace(/\/v1\/?$/, '').replace(/\/+$/, '');
   if (apiKey || process.env.OLLAMA_API_KEY) return 'https://ollama.com';
   return 'http://localhost:11434';
 }
@@ -113,9 +113,14 @@ async function getOllamaResponse(
 export async function OllamaHandler(
   params: HandlerParams,
 ): Promise<ResultNotStreaming | ResultStreaming> {
-  const model = params.model.startsWith('ollama/')
+  let model = params.model.startsWith('ollama/')
     ? params.model.slice(7)
     : params.model;
+  const apiKey = params.apiKey ?? process.env.OLLAMA_API_KEY;
+  // Ollama Cloud requires -cloud suffix on model names
+  if (apiKey && !model.endsWith('-cloud')) {
+    model = model + '-cloud';
+  }
   const prompt = combinePrompts(params.messages);
 
   const res = await getOllamaResponse(model, prompt, params.baseUrl ?? '', !!params.stream, params.apiKey);

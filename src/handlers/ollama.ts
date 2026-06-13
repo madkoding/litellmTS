@@ -66,14 +66,16 @@ async function* iterateResponse(
     if (next?.value) {
       const decoded = new TextDecoder().decode(next.value);
       done = next.done;
-      const lines = decoded.split(/(?<!\\)\n/);
-      const ollamaResponses = lines
-        .map((line) => line.trim())
-        .filter((line) => line !== '')
-        .map((line) => JSON.parse(line) as OllamaResponseChunk)
-        .map((response) => toStreamingChunk(response, model, prompt));
-
-      yield* ollamaResponses;
+      const lines = decoded.split('\n');
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        try {
+          yield toStreamingChunk(JSON.parse(trimmed) as OllamaResponseChunk, model, prompt);
+        } catch {
+          // Skip malformed JSON lines (e.g. partial chunks across reads)
+        }
+      }
     } else {
       done = true;
     }

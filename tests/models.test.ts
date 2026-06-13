@@ -158,6 +158,17 @@ describe('listModels fallback chain', () => {
 
       expect(mockFetch).toHaveBeenCalledWith('http://localhost:11434/api/tags', { headers: {} });
     });
+
+    it('should strip /api suffix from baseUrl to avoid duplication', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ollamaTagsResponse,
+      });
+
+      await listModels('ollama', { baseUrl: 'http://localhost:11434/api', apiKey: 'k' });
+
+      expect(mockFetch).toHaveBeenCalledWith('http://localhost:11434/api/tags', { headers: { Authorization: 'Bearer k' } });
+    });
   });
 });
 

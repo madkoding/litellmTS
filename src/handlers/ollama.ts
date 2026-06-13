@@ -80,6 +80,12 @@ async function* iterateResponse(
   }
 }
 
+function resolveOllamaBaseUrl(apiKey?: string, baseUrl?: string): string {
+  if (baseUrl) return baseUrl.replace(/\/api\/?$/, '').replace(/\/+$/, '');
+  if (apiKey || process.env.OLLAMA_API_KEY) return 'https://ollama.com';
+  return 'http://localhost:11434';
+}
+
 async function getOllamaResponse(
   model: string,
   prompt: string,
@@ -87,11 +93,13 @@ async function getOllamaResponse(
   stream: boolean,
   apiKey?: string,
 ): Promise<Response> {
+  const key = apiKey ?? process.env.OLLAMA_API_KEY;
+  const url = resolveOllamaBaseUrl(key, baseUrl);
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
-  if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
-  return fetch(`${baseUrl}/api/chat`, {
+  if (key) headers.Authorization = `Bearer ${key}`;
+  return fetch(`${url}/api/chat`, {
     method: 'POST',
     headers,
     body: JSON.stringify({
@@ -105,13 +113,12 @@ async function getOllamaResponse(
 export async function OllamaHandler(
   params: HandlerParams,
 ): Promise<ResultNotStreaming | ResultStreaming> {
-  const baseUrl = params.baseUrl ?? 'http://127.0.0.1:11434';
   const model = params.model.startsWith('ollama/')
     ? params.model.slice(7)
     : params.model;
   const prompt = combinePrompts(params.messages);
 
-  const res = await getOllamaResponse(model, prompt, baseUrl, !!params.stream, params.apiKey);
+  const res = await getOllamaResponse(model, prompt, params.baseUrl ?? '', !!params.stream, params.apiKey);
 
   if (!res.ok) {
     throw new Error(
@@ -143,10 +150,11 @@ interface OllamaTag {
 }
 
 registerModelProvider('ollama', async ({ baseUrl, apiKey } = {}) => {
-  const url = baseUrl ?? 'http://127.0.0.1:11434';
+  const url = resolveOllamaBaseUrl(apiKey, baseUrl);
   const headers: Record<string, string> = {};
   if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
-  const res = await fetch(`${url.replace(/\/+$/, '')}/api/tags`, { headers });
+  else if (process.env.OLLAMA_API_KEY) headers.Authorization = `Bearer ${process.env.OLLAMA_API_KEY}`;
+  const res = await fetch(`${url}/api/tags`, { headers });
   if (!res.ok) return [];
   const { models } = (await res.json()) as { models: OllamaTag[] };
   return (models ?? []).map((m) => ({ id: m.name.replace(/-cloud$/, ''), provider: 'ollama' }));

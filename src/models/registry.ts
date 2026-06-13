@@ -20,9 +20,11 @@ interface OpenAIModel {
 
 async function tryOllamaTags(baseUrl: string, provider: string, apiKey?: string): Promise<ModelInfo[] | null> {
   try {
+    const key = apiKey ?? process.env.OLLAMA_API_KEY;
     const headers: Record<string, string> = {};
-    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
-    const res = await fetch(`${baseUrl}/api/tags`, { headers });
+    if (key) headers.Authorization = `Bearer ${key}`;
+    const url = baseUrl.replace(/\/api\/?$/, '').replace(/\/+$/, '');
+    const res = await fetch(`${url}/api/tags`, { headers });
     if (!res.ok) return null;
     const { models } = (await res.json()) as { models: TagsModel[] };
     if (!Array.isArray(models)) return null;

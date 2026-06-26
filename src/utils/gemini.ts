@@ -8,6 +8,8 @@ import type {
   ResultStreaming,
   StreamingChunk,
 } from '../types';
+import { nowSec } from './nowSec';
+import { safeParseArgs } from './safeParseArgs';
 
 
 export function toGeminiContent(
@@ -34,12 +36,7 @@ export function toGeminiContent(
       }
       if (msg.tool_calls) {
         for (const tc of msg.tool_calls) {
-          let args: Record<string, unknown> = {};
-          try {
-            args = JSON.parse(tc.function.arguments);
-          } catch {
-            args = {};
-          }
+          const args = safeParseArgs(tc.function.arguments);
           parts.push({
             functionCall: {
               name: tc.function.name,
@@ -128,7 +125,7 @@ export function toFinishReason(reason: string | null | undefined): FinishReason 
   }
 }
 
-export function toUsage(
+export function toGeminiUsage(
   meta: GenerateContentResponse['usageMetadata'],
 ): ConsistentResponseUsage | undefined {
   if (!meta) return undefined;
@@ -170,8 +167,8 @@ export function toResponse(
 
   return {
     model,
-    created: Math.floor(Date.now() / 1000),
-    usage: toUsage(response.usageMetadata),
+    created: nowSec(),
+    usage: toGeminiUsage(response.usageMetadata),
     choices: [
       {
         index: candidate?.index ?? 0,
@@ -201,8 +198,8 @@ export async function* toStreamingResponse(
 
     const chunkOutput: StreamingChunk = {
       model,
-      created: Math.floor(Date.now() / 1000),
-      usage: toUsage(chunk.usageMetadata),
+      created: nowSec(),
+      usage: toGeminiUsage(chunk.usageMetadata),
       choices: [
         {
           index: candidate?.index ?? 0,

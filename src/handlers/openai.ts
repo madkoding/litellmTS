@@ -11,6 +11,8 @@ import {
   ResultNotStreaming,
 } from '../types';
 import { registerModelProvider } from '../models';
+import { stripPrefix } from '../utils/stripPrefix';
+import { wrapApiError } from '../utils/wrapApiError';
 
 async function* toStreamingResponse(
   response: AsyncIterable<ChatCompletionChunk>,
@@ -46,9 +48,7 @@ export async function OpenAIHandler(
   } = params;
   const apiKey = providedApiKey ?? process.env.OPENAI_API_KEY;
   const baseUrl = providedBaseUrl ?? 'https://api.openai.com/v1';
-  const modelName = completionsParams.model.startsWith('openai/')
-    ? completionsParams.model.slice(7)
-    : completionsParams.model;
+  const modelName = stripPrefix(completionsParams.model, 'openai/');
 
   const openai = new OpenAI({
     apiKey: apiKey,
@@ -67,7 +67,7 @@ export async function OpenAIHandler(
         messages,
       });
     } catch (err) {
-      throw new Error(`OpenAI API error: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
+      throw wrapApiError('OpenAI', err);
     }
     return toStreamingResponse(response);
   }
@@ -81,7 +81,7 @@ export async function OpenAIHandler(
       messages,
     });
   } catch (err) {
-    throw new Error(`OpenAI API error: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
+    throw wrapApiError('OpenAI', err);
   }
 
   const result: ResultNotStreaming = {

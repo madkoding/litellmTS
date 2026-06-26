@@ -1,14 +1,14 @@
 import OpenAI from 'openai';
 import { EmbeddingParams, EmbeddingResponse } from '../types';
+import { stripPrefix } from '../utils/stripPrefix';
+import { wrapApiError } from '../utils/wrapApiError';
 
 export async function OpenAIEmbeddingHandler(
   params: EmbeddingParams,
 ): Promise<EmbeddingResponse> {
   const apiKey = params.apiKey ?? process.env.OPENAI_API_KEY;
   const baseUrl = params.baseUrl;
-  const modelName = params.model.startsWith('openai/')
-    ? params.model.slice(7)
-    : params.model;
+  const modelName = stripPrefix(params.model, 'openai/');
 
   const openai = new OpenAI({
     apiKey: apiKey,
@@ -17,7 +17,7 @@ export async function OpenAIEmbeddingHandler(
   try {
     return await openai.embeddings.create({ input: params.input, model: modelName });
   } catch (err) {
-    throw new Error(`OpenAI embedding API error: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
+    throw wrapApiError('OpenAI embedding', err);
   }
 }
 

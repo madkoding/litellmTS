@@ -14,9 +14,7 @@ export async function GeminiHandler(
 ): Promise<ResultNotStreaming | ResultStreaming> {
   const apiKey = params.apiKey ?? process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('Gemini requires an API key. Set GEMINI_API_KEY environment variable or pass apiKey in params.');
-  const modelName = params.model.startsWith('gemini/')
-    ? params.model.slice(7)
-    : params.model;
+  const modelName = stripPrefix(params.model, 'gemini/');
 
   const client = new GoogleGenAI({ apiKey });
 
@@ -50,11 +48,13 @@ export async function GeminiHandler(
     });
     return toResponse(response, modelName);
   } catch (err) {
-    throw new Error(`Gemini API error: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
+    throw wrapApiError('Gemini', err);
   }
 }
 
 import { registerModelProvider } from '../models';
+import { stripPrefix } from '../utils/stripPrefix';
+import { wrapApiError } from '../utils/wrapApiError';
 
 registerModelProvider('gemini', async ({ apiKey } = {}) => {
   const key = apiKey ?? process.env.GEMINI_API_KEY;

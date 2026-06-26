@@ -7,6 +7,9 @@ import {
 } from '../types';
 import { combinePrompts } from '../utils/combinePrompts';
 import { toUsage } from '../utils/toUsage';
+import { stripPrefix } from '../utils/stripPrefix';
+import { wrapApiError } from '../utils/wrapApiError';
+import { nowSec } from '../utils/nowSec';
 
 async function handleNonStreamingPrediction(
   prompt: string,
@@ -22,7 +25,7 @@ async function handleNonStreamingPrediction(
   return {
     model: modelName,
     usage: toUsage(prompt, output),
-    created: Math.floor(Date.now() / 1000),
+      created: nowSec(),
     choices: [
       {
         message: {
@@ -67,7 +70,7 @@ async function* handleStreamingPrediction(
     await promise;
     const combined = results.reduce((acc, curr) => acc + curr, '');
     yield {
-      created: Math.floor(Date.now() / 1000),
+    created: nowSec(),
       usage: toUsage(prompt, combined),
       choices: [
         {
@@ -91,9 +94,7 @@ export async function ReplicateHandler(
   const replicate = new Replicate({
     auth: apiKey,
   });
-  const modelName = params.model.startsWith('replicate/')
-    ? params.model.slice(10)
-    : params.model;
+  const modelName = stripPrefix(params.model, 'replicate/');
   const version = modelName.split(':')[1];
   if (!version) {
     throw new Error(`Invalid Replicate model format: ${params.model}. Expected format: replicate/<owner>/<name>:<version>`);
@@ -109,7 +110,7 @@ export async function ReplicateHandler(
       },
     });
   } catch (err) {
-    throw new Error(`Replicate API error: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
+    throw wrapApiError('Replicate', err);
   }
 
   if (params.stream) {

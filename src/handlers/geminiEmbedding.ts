@@ -1,15 +1,14 @@
 import { GoogleGenAI } from '@google/genai';
 
 import type { EmbeddingParams, EmbeddingResponse } from '../types';
+import { stripPrefix } from '../utils/stripPrefix';
 
 export async function GeminiEmbeddingHandler(
   params: EmbeddingParams,
 ): Promise<EmbeddingResponse> {
   const apiKey = params.apiKey ?? process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('Gemini requires an API key. Set GEMINI_API_KEY environment variable or pass apiKey in params.');
-  const modelName = params.model.startsWith('gemini/')
-    ? params.model.slice(7)
-    : params.model;
+  const modelName = stripPrefix(params.model, 'gemini/');
 
   const client = new GoogleGenAI({ apiKey });
 

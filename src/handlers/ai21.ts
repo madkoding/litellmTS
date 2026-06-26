@@ -7,6 +7,8 @@ import {
 import { combinePrompts } from '../utils/combinePrompts';
 
 import { iterateSSEStream } from '../utils/sse';
+import { stripPrefix } from '../utils/stripPrefix';
+import { nowSec } from '../utils/nowSec';
 
 const FINISH_REASON_MAP: Record<string, FinishReason> = {
   length: 'length',
@@ -68,7 +70,7 @@ function toResponse(response: AI21Response, model: string): ResultNotStreaming {
   });
   return {
     model: model,
-    created: Math.floor(Date.now() / 1000),
+        created: nowSec(),
     usage: toUsage(response),
     choices: choices,
   };
@@ -106,9 +108,7 @@ export async function AI21Handler(
   const baseUrl = params.baseUrl ?? 'https://api.ai21.com';
   const apiKey = params.apiKey ?? process.env.AI21_API_KEY;
   if (!apiKey) throw new Error('AI21 requires an API key. Set AI21_API_KEY environment variable or pass apiKey in params.');
-  const modelName = params.model.startsWith('ai21/')
-    ? params.model.slice(5)
-    : params.model;
+  const modelName = stripPrefix(params.model, 'ai21/');
   const prompt = combinePrompts(params.messages);
 
   const res = await getAI21Response(modelName, prompt, baseUrl, apiKey, params.stream ?? false);
@@ -122,7 +122,7 @@ export async function AI21Handler(
       const parsed = JSON.parse(payload) as AI21StreamChunk;
       return {
         model: modelName,
-        created: Math.floor(Date.now() / 1000),
+    created: nowSec(),
         choices: [
           {
             delta: { content: parsed.text ?? '', role: 'assistant' },

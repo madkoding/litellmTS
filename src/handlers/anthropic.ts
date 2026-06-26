@@ -10,14 +10,14 @@ import {
 } from '../utils/anthropic';
 import { getAnthropicKey } from '../auth';
 import { registerModelProvider } from '../models';
+import { stripPrefix } from '../utils/stripPrefix';
+import { wrapApiError } from '../utils/wrapApiError';
 
 export async function AnthropicHandler(
   params: HandlerParams,
 ): Promise<ResultNotStreaming | ResultStreaming> {
   const apiKey = params.apiKey ?? process.env.ANTHROPIC_API_KEY ?? (await getAnthropicKey());
-  const modelName = params.model.startsWith('anthropic/')
-    ? params.model.slice(10)
-    : params.model;
+  const modelName = stripPrefix(params.model, 'anthropic/');
 
   const anthropic = new Anthropic({ apiKey });
 
@@ -47,7 +47,7 @@ export async function AnthropicHandler(
     const message = await anthropic.messages.create(anthropicParams);
     return toAnthropicResponse(message);
   } catch (err) {
-    throw new Error(`Anthropic API error: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
+    throw wrapApiError('Anthropic', err);
   }
 }
 

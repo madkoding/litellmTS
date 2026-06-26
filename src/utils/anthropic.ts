@@ -7,6 +7,8 @@ import type {
   ResultStreaming,
   StreamingChunk,
 } from '../types';
+import { nowSec } from './nowSec';
+import { safeParseArgs } from './safeParseArgs';
 
 export function toAnthropicMessages(input: Message[]): {
   system: string | undefined;
@@ -36,12 +38,7 @@ export function toAnthropicMessages(input: Message[]): {
       }
       if (msg.tool_calls && msg.tool_calls.length > 0) {
         for (const tc of msg.tool_calls) {
-          let parsedArgs: Record<string, unknown> = {};
-          try {
-            parsedArgs = JSON.parse(tc.function.arguments);
-          } catch {
-            parsedArgs = {};
-          }
+          const parsedArgs = safeParseArgs(tc.function.arguments);
           content.push({
             type: 'tool_use',
             id: tc.id,
@@ -145,7 +142,7 @@ export function toAnthropicResponse(message: Anthropic.Message): ResultNotStream
   const toolCalls = getToolCalls(message.content);
   return {
     model: message.model,
-    created: Math.floor(Date.now() / 1000),
+    created: nowSec(),
     usage: {
       prompt_tokens: message.usage.input_tokens,
       completion_tokens: message.usage.output_tokens,
@@ -192,7 +189,7 @@ export async function* toAnthropicStreamingResponse(
           });
           const chunk: StreamingChunk = {
             model,
-            created: Math.floor(Date.now() / 1000),
+            created: nowSec(),
             choices: [
               {
                 delta: {
@@ -223,7 +220,7 @@ export async function* toAnthropicStreamingResponse(
         if (event.delta.type === 'text_delta') {
           const chunk: StreamingChunk = {
             model,
-            created: Math.floor(Date.now() / 1000),
+            created: nowSec(),
             choices: [
               {
                 delta: { content: event.delta.text, role: 'assistant' },
@@ -237,7 +234,7 @@ export async function* toAnthropicStreamingResponse(
         if (event.delta.type === 'thinking_delta') {
           const chunk: StreamingChunk = {
             model,
-            created: Math.floor(Date.now() / 1000),
+            created: nowSec(),
             choices: [
               {
                 delta: { content: null, reasoning: (event.delta as any).thinking, role: 'assistant' },
@@ -267,7 +264,7 @@ export async function* toAnthropicStreamingResponse(
           }
           const chunk: StreamingChunk = {
             model,
-            created: Math.floor(Date.now() / 1000),
+            created: nowSec(),
             choices: [
               {
                 delta: {
@@ -302,7 +299,7 @@ export async function* toAnthropicStreamingResponse(
       case 'message_stop':
         yield {
           model,
-          created: Math.floor(Date.now() / 1000),
+          created: nowSec(),
           choices: [
             {
               delta: { content: '', role: 'assistant' },

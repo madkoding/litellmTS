@@ -1,5 +1,6 @@
 import type { Message } from '../types';
 import type { HandlerParams } from '../types';
+import { safeParseArgs } from './safeParseArgs';
 
 export interface RenderQwenOpts {
   messages: Message[];
@@ -115,8 +116,7 @@ Reminder:
           } else {
             as += '<tool_call>\n<function=' + fn.name + '>\n';
           }
-          let args: Record<string, unknown> = {};
-          try { args = JSON.parse(fn.arguments); } catch { args = {}; }
+          const args = safeParseArgs(fn.arguments);
           for (const [k, v] of Object.entries(args)) {
             const sv = typeof v === 'object' ? JSON.stringify(v) : String(v);
             as += '<parameter=' + k + '>\n' + sv + '\n</parameter>\n';

@@ -77,7 +77,7 @@ export async function CopilotHandler(
 
   if (!apiKey) {
     throw new Error(
-      'No se encontró token de Copilot. Ejecuta: npx litellm login copilot',
+      'No Copilot token found. Run: npx litellm login copilot',
     );
   }
 
@@ -111,7 +111,7 @@ export async function CopilotHandler(
   if (!response.ok) {
     const text = await response.text();
     throw new Error(
-      `Error de Copilot API: ${response.status} ${response.statusText}\n${text}`,
+      `Copilot API error: ${response.status} ${response.statusText}\n${text}`,
     );
   }
 

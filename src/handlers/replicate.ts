@@ -55,6 +55,12 @@ async function* handleStreamingPrediction(
   let resolve: (a: unknown) => void;
   let promise = new Promise((r) => (resolve = r));
 
+  const timeout = setTimeout(() => {
+    source.close();
+    done = true;
+    resolve({});
+  }, 30_000);
+
   source.addEventListener('output', (e: MessageEvent) => {
     results.push(e.data as string);
     resolve({});
@@ -63,6 +69,7 @@ async function* handleStreamingPrediction(
 
   source.addEventListener('done', () => {
     done = true;
+    clearTimeout(timeout);
     source.close();
   });
 

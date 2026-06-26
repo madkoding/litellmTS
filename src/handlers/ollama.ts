@@ -164,7 +164,7 @@ async function qwenCompletionPath(
 
   if (!res.ok) {
     let errorBody = '';
-    try { errorBody = await res.text(); } catch { /* empty */ }
+    try { errorBody = await res.text(); } catch { errorBody = ''; }
     const prefix = `[Ollama/Qwen] Endpoint: ${endpoint} | Model: ${model}`;
     let detail = `HTTP ${res.status}`;
     if (errorBody) {
@@ -468,7 +468,7 @@ export async function OllamaHandler(
 
   if (!res.ok) {
     let errorBody = '';
-    try { errorBody = await res.text(); } catch {}
+    try { errorBody = await res.text(); } catch { errorBody = ''; }
     const prefix = `[Ollama] Endpoint: ${endpoint} | Model: ${actualModel} | HasApiKey: ${hasApiKey}`;
     let detail = `HTTP ${res.status}`;
     if (errorBody) {

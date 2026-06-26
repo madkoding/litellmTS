@@ -16,7 +16,7 @@ describe('auth/copilot - login', () => {
   it('throws if device code request fails', async () => {
     mockFetch.mockResolvedValueOnce({ ok: false, status: 429 } as Response);
 
-    await expect(login()).rejects.toThrow('Error al solicitar device code: 429');
+    await expect(login()).rejects.toThrow('Failed to request device code: 429');
     expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 });

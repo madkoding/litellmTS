@@ -43,6 +43,6 @@ describe('auth/anthropic', () => {
       text: async () => 'invalid key',
     } as Response);
 
-    await expect(loginAnthropic()).rejects.toThrow('Key inválida');
+    await expect(loginAnthropic()).rejects.toThrow('Invalid key');
   });
 });

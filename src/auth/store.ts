@@ -1,4 +1,4 @@
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, chmod } from 'node:fs/promises';
 import { join } from 'node:path';
 import { homedir, hostname } from 'node:os';
 import { scryptSync, createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
@@ -9,7 +9,7 @@ const IV_LENGTH = 16;
 const PEPPER = 'litellmts-core@v1';
 
 function deriveKey(): Buffer {
-  const seed = `${hostname()}-${process.getuid?.() ?? process.pid}-${PEPPER}`;
+  const seed = `${hostname()}-${homedir()}-${PEPPER}`;
   return scryptSync(seed, 'credentials-key-salt', KEY_LENGTH);
 }
 
@@ -61,6 +61,7 @@ async function writeStore(data: Record<string, unknown>): Promise<void> {
   const plaintext = JSON.stringify(data);
   const encrypted = encrypt(plaintext);
   await writeFile(STORE_PATH, encrypted, 'utf-8');
+  await chmod(STORE_PATH, 0o600);
 }
 
 export async function getProviderCredentials<T>(
@@ -100,7 +101,7 @@ export async function getCopilotCredentials() {
         expiresAt: store.expiresAt as number,
         enterpriseUrl: store.enterpriseUrl as string | undefined,
       };
-      await setProviderCredentials('github-copilot', migrated as unknown as Record<string, unknown>);
+      await setProviderCredentials('github-copilot', migrated);
       return migrated;
     }
   } catch {
@@ -112,13 +113,9 @@ export async function getCopilotCredentials() {
 export async function setCopilotCredentials(
   creds: { githubToken: string; copilotToken: string; expiresAt: number; enterpriseUrl?: string },
 ): Promise<void> {
-  await setProviderCredentials('github-copilot', creds as unknown as Record<string, unknown>);
+  await setProviderCredentials('github-copilot', creds);
 }
 
 export async function clearCredentials(): Promise<void> {
-  try {
-    await writeStore({});
-  } catch {
-    // ignore
-  }
+  await writeStore({});
 }

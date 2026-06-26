@@ -28,7 +28,7 @@ export function renderQwenTemplate(opts: RenderQwenOpts): string {
   }
 
   let sysContent = '';
-  if (sysMsg && sysMsg.content) {
+  if (sysMsg?.content) {
     sysContent = sysMsg.content.trim();
     if (sysContent.includes('<|think_off|>')) {
       thinking = false;
@@ -42,7 +42,7 @@ export function renderQwenTemplate(opts: RenderQwenOpts): string {
   /* ── tools block ── */
   if (hasTools) {
     let toolBlock = '<|im_start|>system\n# Tools\n\nYou have access to the following functions:\n\n<tools>';
-    for (const tool of tools!) {
+    for (const tool of tools) {
       toolBlock += '\n' + JSON.stringify(tool);
     }
     toolBlock += '\n</tools>\n\n';
@@ -157,7 +157,7 @@ Reminder:
 
       parts.push('\n</tool_response>');
       const next = msgs[i + 1];
-      if (!next || next.role !== 'tool') {
+      if (next?.role !== 'tool') {
         parts.push('<|im_end|>\n');
       }
     } else {

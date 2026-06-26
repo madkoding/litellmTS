@@ -77,7 +77,7 @@ async function* iterateQwenGenerate(
 }
 
 export async function qwenCompletionPath(
-  params: { model: string; messages: Array<{ role: string; content: string | null; name?: string; tool_call_id?: string; tool_calls?: Array<{ id: string; type: string; function: { name: string; arguments: string } }> }>; stream?: boolean | null; baseUrl?: string; apiKey?: string; max_tokens?: number | null; temperature?: number | null; top_p?: number | null; repetition_penalty?: number | null; frequency_penalty?: number | null; top_k?: number | null; tools?: Array<{ type: 'function'; function: { name: string; description?: string; parameters?: Record<string, unknown> } }>; think?: boolean },
+  params: { model: string; messages: { role: string; content: string | null; name?: string; tool_call_id?: string; tool_calls?: { id: string; type: string; function: { name: string; arguments: string } }[] }[]; stream?: boolean | null; baseUrl?: string; apiKey?: string; max_tokens?: number | null; temperature?: number | null; top_p?: number | null; repetition_penalty?: number | null; frequency_penalty?: number | null; top_k?: number | null; tools?: { type: 'function'; function: { name: string; description?: string; parameters?: Record<string, unknown> } }[]; think?: boolean },
   model: string,
 ): Promise<ResultNotStreaming | ResultStreaming> {
   const thinkingEnabled = (params as any).think !== false;

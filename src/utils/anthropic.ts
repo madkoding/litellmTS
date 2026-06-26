@@ -90,8 +90,8 @@ export function toAnthropicTools(
     description: t.function.description ?? '',
     input_schema: {
       type: 'object' as const,
-      ...((t.function.parameters ?? {}) as Record<string, unknown>),
-    } as Anthropic.Tool.InputSchema,
+      ...((t.function.parameters ?? {})),
+    },
   }));
 }
 
@@ -124,7 +124,7 @@ export function getTextContent(content: Anthropic.ContentBlock[]): string {
 
 export function getToolCalls(
   content: Anthropic.ContentBlock[],
-): Array<{ id: string; type: 'function'; function: { name: string; arguments: string } }> {
+): { id: string; type: 'function'; function: { name: string; arguments: string } }[] {
   const toolUseBlocks = content.filter(
     (block): block is Anthropic.ToolUseBlock => block.type === 'tool_use',
   );
@@ -167,7 +167,7 @@ export async function* toAnthropicStreamingResponse(
 ): ResultStreaming {
   let model = '';
   let stopReason: Anthropic.StopReason | null | undefined;
-  const toolUseAccumulators: Map<number, { id: string; name: string; input: string }> = new Map();
+  const toolUseAccumulators = new Map<number, { id: string; name: string; input: string }>();
 
   for await (const event of stream) {
     switch (event.type) {

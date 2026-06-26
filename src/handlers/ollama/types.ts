@@ -12,38 +12,38 @@ export interface OllamaResponseChunk {
     role: string;
     content: string;
     thinking?: string;
-    tool_calls?: Array<{
+    tool_calls?: {
       type: 'function';
       function: { name: string; arguments: string };
-    }>;
+    }[];
   };
   done: boolean;
 }
 
 export interface OpenAIChatChunk {
-  choices: Array<{
+  choices: {
     index: number;
     delta?: {
       role?: string;
       content?: string;
       reasoning?: string;
-      tool_calls?: Array<{
+      tool_calls?: {
         index?: number;
         id?: string;
         type?: 'function';
         function?: { name?: string; arguments?: string };
-      }>;
+      }[];
     };
     message?: {
       role: string;
       content?: string;
       reasoning?: string;
-      tool_calls?: Array<{
+      tool_calls?: {
         id: string;
         type: 'function';
         function: { name: string; arguments: string };
-      }>;
+      }[];
     };
     finish_reason: string | null;
-  }>;
+  }[];
 }

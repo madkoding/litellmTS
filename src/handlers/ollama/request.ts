@@ -47,14 +47,14 @@ export async function getQwenGenerateResponse(
 
 export async function getOllamaResponse(
   model: string,
-  messages: Array<{ role: string; content: string; tool_calls?: Array<{ id: string; type: string; function: { name: string; arguments: string } }> }>,
+  messages: { role: string; content: string; tool_calls?: { id: string; type: string; function: { name: string; arguments: string } }[] }[],
   baseUrl: string,
   stream: boolean,
   apiKey?: string,
   maxTokens?: number | null,
   temperature?: number | null,
   topP?: number | null,
-  tools?: Array<{ type: 'function'; function: { name: string; description?: string; parameters?: Record<string, unknown> } }>,
+  tools?: { type: 'function'; function: { name: string; description?: string; parameters?: Record<string, unknown> } }[],
   think?: boolean | null,
   repetitionPenalty?: number | null,
   frequencyPenalty?: number | null,

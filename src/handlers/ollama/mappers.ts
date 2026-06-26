@@ -36,7 +36,7 @@ export function toStreamingChunkFromDelta(
   content: string,
   model: string,
   prompt: string,
-  toolCalls?: Array<{ id?: string; type?: 'function'; function?: { name?: string; arguments?: string } }>,
+  toolCalls?: { id?: string; type?: 'function'; function?: { name?: string; arguments?: string } }[],
   reasoning?: string,
 ): StreamingChunk {
   return {
@@ -48,7 +48,7 @@ export function toStreamingChunkFromDelta(
         delta: {
           content,
           role: 'assistant',
-          tool_calls: toolCalls as any,
+          tool_calls: toolCalls,
           reasoning,
         },
         finish_reason: null,

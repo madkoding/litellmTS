@@ -4,7 +4,7 @@ interface OllamaTag {
   name: string;
 }
 
-type ModelFetcherType = (params?: { apiKey?: string; baseUrl?: string }) => Promise<Array<{ id: string; provider: string }>>;
+type ModelFetcherType = (params?: { apiKey?: string; baseUrl?: string }) => Promise<{ id: string; provider: string }[]>;
 
 export function makeOllamaModelProvider(provider: string): ModelFetcherType {
   return async ({ baseUrl, apiKey } = {}) => {

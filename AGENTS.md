@@ -15,27 +15,32 @@
 - Error messages: English across all handlers
 - Commit style: conventional commits (`feat:`, `fix:`, `refactor:`, `chore:`, `security:`)
 
-## Security Baseline (achieved 2026-06-12)
+## Security Baseline (achieved 2026-06-26)
 - 0 npm audit vulnerabilities across 674 packages
 - All dependencies updated to latest compatible major versions
-- Credential store: AES-256-GCM encrypted (`src/auth/store.ts`)
+- Credential store: AES-256-GCM encrypted (`src/auth/store.ts`) — key derived from hostname + homedir
 - OAuth shell injection eliminated (`execSync` → `execFileSync` in `src/auth/copilot.ts`)
+- Auth file permissions: `chmod 600` on `~/.litellm/auth.json`
+- Windows key stability: `homedir()` used instead of `process.pid` for key derivation
+- Error messages: all English (migrated from Spanish in auth layer)
 - ESLint `no-useless-assignment` fixed in 4 files
 
-## API Migrations Completed
-- **Anthropic** (`src/handlers/anthropic.ts`): legacy `completions.create()` → Messages API `messages.create()`
-- **Cohere** (`src/handlers/cohere.ts`): legacy `generate()`/`generateStream()` → Chat API `chat()`/`chatStream()`
+## Cross-cutting Utils
+- `src/utils/stripPrefix.ts` — model prefix stripping (replaces 12 inline sites)
+- `src/utils/wrapApiError.ts` — consistent error wrapping with `{ cause }` (replaces 7 sites)
+- `src/utils/nowSec.ts` — `Math.floor(Date.now() / 1000)` (replaces 11+ sites)
+- `src/utils/safeParseArgs.ts` — `try { JSON.parse(args) } catch {}` (replaces 4 sites)
 
-## Code Quality Fixes (2026-06-12)
-- Gemini streaming: `model` was `undefined` in chunks — fixed
-- Model prefix stripping: `split('/')[1]` → `startsWith/slice` across 5 handlers
-- Error handling: wrapped SDK calls in try/catch with `{ cause }` in 6 handlers
-- Replicate non-streaming response missing `model` field — added
-- Lint error `preserve-caught-error` fixed in 7 handlers
+## Architecture
+- **Registry pattern**: handlers self-register via `registerCompletionHandler()` / `registerEmbeddingHandler()`
+- **No barrel files**: handler side-effect imports are inlined in `completion.ts` and `embedding.ts`
+- **Ollama split**: `src/handlers/ollama/` — 9 focused modules (types, mappers, url, request, qwen, stream, models, register, index)
+- **Unified stream iterator**: `iterateStream<C>` with strategy pattern (3 strategies: Qwen, native Ollama, OpenAI-compatible)
+- **No God Objects**: ollama.ts reduced from 527 lines to ~60 lines (thin barrel)
 
 ## Providers
-- Dedicated: OpenAI, Anthropic, Gemini, Copilot, Mistral, Cohere, DeepInfra, Replicate, AI21, Ollama
-- OpenAI-compatible: 38 providers (groq, deepseek, perplexity, xai, etc.) routed through `OpenAILikeHandler`
+- Dedicated: OpenAI, Anthropic, Gemini, Copilot, Cohere, Replicate, AI21, Ollama
+- OpenAI-compatible: 37 providers (groq, deepseek, perplexity, xai, mistral, deepinfra, etc.) routed through `OpenAILikeHandler`
 
 ## Publishing
 ```bash

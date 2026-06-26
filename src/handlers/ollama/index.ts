@@ -73,5 +73,5 @@ export async function OllamaHandler(
   }
 
   const data = (await res.json()) as OllamaResponseChunk;
-  return toResponse(data.message.content, model, prompt, data.message.tool_calls as any, data.message.thinking);
+  return toResponse(data.message.content, model, prompt, data.message.tool_calls, data.message.thinking);
 }

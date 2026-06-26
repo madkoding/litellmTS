@@ -36,7 +36,7 @@ export async function GeminiHandler(
       const stream = await client.models.generateContentStream({
         model: modelName,
         contents,
-        config: config as any,
+        config: config,
       });
       return toStreamingResponse(stream, modelName);
     }
@@ -44,7 +44,7 @@ export async function GeminiHandler(
     const response = await client.models.generateContent({
       model: modelName,
       contents,
-      config: config as any,
+      config: config,
     });
     return toResponse(response, modelName);
   } catch (err) {

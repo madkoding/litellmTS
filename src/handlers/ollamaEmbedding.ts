@@ -12,14 +12,13 @@ async function getOllamaResponse(
 ): Promise<Response> {
   return fetch(`${baseUrl}/api/embeddings`, {
     method: 'POST',
-
+    headers: {
+      'Content-Type': 'application/json',
+    },
     body: JSON.stringify({
       model,
       prompt: input,
       stream: false,
-      headers: {
-        'Content-Type': 'application/json',
-      },
     }),
   });
 }

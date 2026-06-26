@@ -9,7 +9,19 @@ import {
 } from './types';
 import { completionHandlers } from './registry';
 
-import './handlers';
+import './handlers/anthropic';
+import './handlers/cohere';
+import './handlers/ollama';
+import './handlers/openai';
+import './handlers/ai21';
+import './handlers/replicate';
+import './handlers/gemini';
+import './handlers/copilot';
+import './handlers/openaiLike';
+import './handlers/openaiEmbedding';
+import './handlers/ollamaEmbedding';
+import './handlers/geminiEmbedding';
+import './handlers/openaiLikeEmbedding';
 
 export const MODEL_HANDLER_MAPPINGS = completionHandlers;
 

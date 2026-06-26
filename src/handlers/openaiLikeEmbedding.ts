@@ -12,9 +12,7 @@ export function createOpenAILikeEmbeddingHandler(
         `${config.name} requires an API key. Set the ${config.apiKeyEnv} environment variable or pass apiKey in params.`,
       );
     }
-    const modelName = params.model.startsWith(prefix)
-      ? params.model.slice(prefix.length)
-      : params.model;
+    const modelName = params.model.slice(prefix.length);
     return OpenAIEmbeddingHandler({
       ...params,
       model: modelName,

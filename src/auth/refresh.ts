@@ -1,16 +1,13 @@
 import {
   getCopilotCredentials,
   setCopilotCredentials,
-  getAnthropicCredentials,
+  getProviderCredentials,
 } from './store';
 
-const COPILOT_API = 'https://api.githubcopilot.com';
-const USER_AGENT = 'GitHubCopilotChat/0.35.0';
-const EDITOR_VERSION = 'vscode/1.107.0';
-const EDITOR_PLUGIN_VERSION = 'copilot-chat/0.35.0';
-const COPILOT_INTEGRATION_ID = 'vscode-chat';
 
-async function exchangeCopilotToken(
+import { COPILOT_API, USER_AGENT, EDITOR_VERSION, EDITOR_PLUGIN_VERSION, COPILOT_INTEGRATION_ID } from './constants';
+
+export async function exchangeCopilotToken(
   githubToken: string,
 ): Promise<{ token: string; expires_at: number }> {
   const res = await fetch(`${COPILOT_API}/copilot_internal/v2/token`, {
@@ -67,6 +64,6 @@ export async function getValidToken(): Promise<string | null> {
 }
 
 export async function getAnthropicKey(): Promise<string | null> {
-  const creds = await getAnthropicCredentials();
+  const creds = await getProviderCredentials<{ apiKey: string }>('anthropic');
   return creds?.apiKey ?? null;
 }

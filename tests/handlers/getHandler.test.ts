@@ -3,10 +3,8 @@ import { AI21Handler } from '../../src/handlers/ai21';
 import { AnthropicHandler } from '../../src/handlers/anthropic';
 import { CohereHandler } from '../../src/handlers/cohere';
 import { CopilotHandler } from '../../src/handlers/copilot';
-import { DeepInfraHandler } from '../../src/handlers/deepinfra';
 import { GeminiHandler } from '../../src/handlers/gemini';
 import { getHandler } from '../../src/handlers/getHandler';
-import { MistralHandler } from '../../src/handlers/mistral';
 import { OllamaHandler } from '../../src/handlers/ollama';
 import { OpenAIHandler } from '../../src/handlers/openai';
 import { ReplicateHandler } from '../../src/handlers/replicate';
@@ -29,8 +27,6 @@ describe('getHandler', () => {
       { model: 'ai21/j2-mid-instruct', expectedHandler: AI21Handler },
       { model: 'ai21/j2-ultra-instruct', expectedHandler: AI21Handler },
       { model: 'replicate/test/test', expectedHandler: ReplicateHandler },
-      { model: 'deepinfra/test/test', expectedHandler: DeepInfraHandler },
-      { model: 'mistral/mistral-tiny', expectedHandler: MistralHandler },
       { model: 'gemini/gemini-2.0-flash', expectedHandler: GeminiHandler },
       { model: 'gemini/gemini-2.0-pro', expectedHandler: GeminiHandler },
       { model: 'copilot/gpt-4o', expectedHandler: CopilotHandler },

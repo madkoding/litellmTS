@@ -1,5 +1,5 @@
 jest.mock('../../src/auth/store', () => ({
-  setAnthropicCredentials: jest.fn(),
+  setProviderCredentials: jest.fn(),
 }));
 
 jest.mock('node:readline/promises', () => ({
@@ -13,7 +13,7 @@ const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
 import { loginAnthropic } from '../../src/auth/anthropic';
-import { setAnthropicCredentials } from '../../src/auth/store';
+import { setProviderCredentials } from '../../src/auth/store';
 
 describe('auth/anthropic', () => {
   beforeEach(() => {
@@ -32,7 +32,7 @@ describe('auth/anthropic', () => {
         headers: expect.objectContaining({ 'x-api-key': 'sk-ant-valid-key' }),
       }),
     );
-    expect(setAnthropicCredentials).toHaveBeenCalledWith({ apiKey: 'sk-ant-valid-key' });
+    expect(setProviderCredentials).toHaveBeenCalledWith('anthropic', { apiKey: 'sk-ant-valid-key' });
   });
 
   it('throws when validation fails', async () => {

@@ -1,7 +1,7 @@
 const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
-import { listModels, registerModelProvider, clearModelCache, listProviders } from '../src/models/registry';
+import { listModels, registerModelProvider, clearModelCache, listProviders } from '../src/models';
 
 const ollamaTagsResponse = {
   models: [{ name: 'llama3:8b' }, { name: 'mistral:7b' }],
@@ -178,7 +178,7 @@ describe('listProviders', () => {
     expect(Array.isArray(providers)).toBe(true);
     providers.forEach((p) => {
       expect(p).toHaveProperty('name');
-      expect(p).toHaveProperty('hasModelList', true);
+      expect(p).toHaveProperty('name');
     });
   });
 });

@@ -5,9 +5,11 @@ import {
   toAnthropicMessages,
   toAnthropicResponse,
   toAnthropicStreamingResponse,
+  toAnthropicTools,
+  toAnthropicToolChoice,
 } from '../utils/anthropic';
 import { getAnthropicKey } from '../auth';
-import { registerModelProvider } from '../models/registry';
+import { registerModelProvider } from '../models';
 
 export async function AnthropicHandler(
   params: HandlerParams,
@@ -20,12 +22,17 @@ export async function AnthropicHandler(
   const anthropic = new Anthropic({ apiKey });
 
   const { system, messages } = toAnthropicMessages(params.messages);
+  const tools = toAnthropicTools(params.tools);
+  const toolChoice = toAnthropicToolChoice(params.tool_choice);
 
   const anthropicParams: Anthropic.MessageCreateParams = {
     model: modelName,
     max_tokens: params.max_tokens ?? 300,
     messages,
     ...(system ? { system } : {}),
+    ...(tools ? { tools } : {}),
+    ...(toolChoice ? { tool_choice: toolChoice } : {}),
+    ...(params.thinking ? { thinking: params.thinking as Anthropic.MessageCreateParams['thinking'] } : {}),
   };
 
   try {

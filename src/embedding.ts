@@ -1,11 +1,9 @@
 import { getHandler } from './handlers/getHandler';
-import { EmbeddingHandler, EmbeddingParams, EmbeddingResponse } from './types';
-import { getEmbeddingHandlers } from './registry';
-
+import { EmbeddingParams, EmbeddingResponse } from './types';
+import { embeddingHandlers } from './registry';
 import './handlers';
 
-const EMBEDDING_MODEL_HANDLER_MAPPINGS: Record<string, EmbeddingHandler> =
-  getEmbeddingHandlers();
+const EMBEDDING_MODEL_HANDLER_MAPPINGS = embeddingHandlers;
 
 /**
  * Generate embeddings for the given input using the provider that matches the model prefix.

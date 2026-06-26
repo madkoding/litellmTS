@@ -109,8 +109,14 @@ describe('OllamaHandler', () => {
     });
 
     it('uses https://ollama.com when apiKey is provided without baseUrl', async () => {
-      const responseBody = JSON.stringify({ model: 'gpt-oss:120b', created_at: '', message: { role: 'assistant', content: 'Hello' }, done: true });
-      mockFetch.mockResolvedValueOnce(createMockResponse(responseBody));
+      const responseBody = JSON.stringify({
+        id: 'cmpl-xxx',
+        object: 'chat.completion',
+        created: 1000,
+        model: 'gpt-oss:120b-cloud',
+        choices: [{ index: 0, message: { role: 'assistant', content: 'Hello' }, finish_reason: 'stop' }],
+      });
+      mockFetch.mockResolvedValueOnce(createMockResponse(JSON.stringify(responseBody)));
 
       await OllamaHandler({
         model: 'ollama/gpt-oss:120b',
@@ -120,13 +126,19 @@ describe('OllamaHandler', () => {
       });
 
       const url = mockFetch.mock.calls[0][0];
-      expect(url).toBe('https://ollama.com/api/chat');
+      expect(url).toBe('https://ollama.com/v1/chat/completions');
     });
 
     it('uses https://ollama.com when OLLAMA_API_KEY env is set', async () => {
       process.env.OLLAMA_API_KEY = 'env-key-456';
-      const responseBody = JSON.stringify({ model: 'gpt-oss:120b', created_at: '', message: { role: 'assistant', content: 'Hello' }, done: true });
-      mockFetch.mockResolvedValueOnce(createMockResponse(responseBody));
+      const responseBody = JSON.stringify({
+        id: 'cmpl-xxx',
+        object: 'chat.completion',
+        created: 1000,
+        model: 'gpt-oss:120b-cloud',
+        choices: [{ index: 0, message: { role: 'assistant', content: 'Hello' }, finish_reason: 'stop' }],
+      });
+      mockFetch.mockResolvedValueOnce(createMockResponse(JSON.stringify(responseBody)));
 
       await OllamaHandler({
         model: 'ollama/gpt-oss:120b',
@@ -135,14 +147,20 @@ describe('OllamaHandler', () => {
       });
 
       const url = mockFetch.mock.calls[0][0];
-      expect(url).toBe('https://ollama.com/api/chat');
+      expect(url).toBe('https://ollama.com/v1/chat/completions');
       const authHeader = mockFetch.mock.calls[0][1].headers.Authorization;
       expect(authHeader).toBe('Bearer env-key-456');
     });
 
     it('strips /api suffix from baseUrl to avoid duplication', async () => {
-      const responseBody = JSON.stringify({ model: 'llama2', created_at: '', message: { role: 'assistant', content: 'Hello' }, done: true });
-      mockFetch.mockResolvedValueOnce(createMockResponse(responseBody));
+      const responseBody = JSON.stringify({
+        id: 'cmpl-xxx',
+        object: 'chat.completion',
+        created: 1000,
+        model: 'llama2-cloud',
+        choices: [{ index: 0, message: { role: 'assistant', content: 'Hello' }, finish_reason: 'stop' }],
+      });
+      mockFetch.mockResolvedValueOnce(createMockResponse(JSON.stringify(responseBody)));
 
       await OllamaHandler({
         model: 'ollama/llama2',
@@ -153,7 +171,7 @@ describe('OllamaHandler', () => {
       });
 
       const url = mockFetch.mock.calls[0][0];
-      expect(url).toBe('https://ollama.com/api/chat');
+      expect(url).toBe('https://ollama.com/v1/chat/completions');
     });
 
     it('strips trailing slash from baseUrl', async () => {
@@ -172,15 +190,104 @@ describe('OllamaHandler', () => {
     });
   });
 
+  describe('sampling params', () => {
+    it('defaults repeat_penalty, top_k, top_p when not provided (native endpoint)', async () => {
+      const responseBody = JSON.stringify({ model: 'llama2', created_at: '', message: { role: 'assistant', content: 'Hi' }, done: true });
+      mockFetch.mockResolvedValueOnce(createMockResponse(responseBody));
+
+      await OllamaHandler({
+        model: 'ollama/llama2',
+        messages: [{ role: 'user', content: 'hi' }],
+        stream: false,
+      });
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      expect(body.options.repeat_penalty).toBe(1.1);
+      expect(body.options.top_k).toBe(40);
+      expect(body.options.top_p).toBe(0.9);
+    });
+
+    it('passes custom repetition_penalty, top_k, top_p to native endpoint', async () => {
+      const responseBody = JSON.stringify({ model: 'llama2', created_at: '', message: { role: 'assistant', content: 'Hi' }, done: true });
+      mockFetch.mockResolvedValueOnce(createMockResponse(responseBody));
+
+      await OllamaHandler({
+        model: 'ollama/llama2',
+        messages: [{ role: 'user', content: 'hi' }],
+        stream: false,
+        repetition_penalty: 1.2,
+        top_k: 50,
+        top_p: 0.95,
+      });
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      expect(body.options.repeat_penalty).toBe(1.2);
+      expect(body.options.top_k).toBe(50);
+      expect(body.options.top_p).toBe(0.95);
+    });
+
+    it('passes repetition_penalty and frequency_penalty to OpenAI endpoint', async () => {
+      const responseBody = JSON.stringify({
+        id: 'cmpl-xxx',
+        object: 'chat.completion',
+        created: 1000,
+        model: 'gpt-oss:120b-cloud',
+        choices: [{ index: 0, message: { role: 'assistant', content: 'Hi' }, finish_reason: 'stop' }],
+      });
+      mockFetch.mockResolvedValueOnce(createMockResponse(JSON.stringify(responseBody)));
+
+      await OllamaHandler({
+        model: 'ollama/gpt-oss:120b',
+        messages: [{ role: 'user', content: 'hi' }],
+        stream: false,
+        apiKey: 'ollama-key-123',
+        repetition_penalty: 1.05,
+        frequency_penalty: 0.2,
+      });
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      expect(body.repetition_penalty).toBe(1.05);
+      expect(body.frequency_penalty).toBe(0.2);
+    });
+
+    it('does not send repetition params for OpenAI endpoint when not provided', async () => {
+      const responseBody = JSON.stringify({
+        id: 'cmpl-xxx',
+        object: 'chat.completion',
+        created: 1000,
+        model: 'gpt-oss:120b-cloud',
+        choices: [{ index: 0, message: { role: 'assistant', content: 'Hi' }, finish_reason: 'stop' }],
+      });
+      mockFetch.mockResolvedValueOnce(createMockResponse(JSON.stringify(responseBody)));
+
+      await OllamaHandler({
+        model: 'ollama/gpt-oss:120b',
+        messages: [{ role: 'user', content: 'hi' }],
+        stream: false,
+        apiKey: 'ollama-key-123',
+      });
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      expect(body.repetition_penalty).toBeUndefined();
+      expect(body.frequency_penalty).toBeUndefined();
+    });
+  });
+
   describe('auth headers', () => {
     beforeEach(() => {
       delete process.env.OLLAMA_API_KEY;
     });
 
     it('sends Authorization header when apiKey is provided', async () => {
-      const responseBody = JSON.stringify({ model: 'gpt-oss:120b', created_at: '', message: { role: 'assistant', content: 'Hello' }, done: true });
+      const responseBody = JSON.stringify({
+        id: 'cmpl-xxx',
+        object: 'chat.completion',
+        created: 1000,
+        model: 'gpt-oss:120b-cloud',
+        choices: [{ index: 0, message: { role: 'assistant', content: 'Hello' }, finish_reason: 'stop' }],
+      });
 
-      mockFetch.mockResolvedValueOnce(createMockResponse(responseBody));
+      mockFetch.mockResolvedValueOnce(createMockResponse(JSON.stringify(responseBody)));
 
       await OllamaHandler({
         model: 'ollama/gpt-oss:120b',
@@ -191,7 +298,7 @@ describe('OllamaHandler', () => {
       });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://ollama.com/api/chat',
+        'https://ollama.com/v1/chat/completions',
         expect.objectContaining({
           headers: expect.objectContaining({
             Authorization: 'Bearer ollama-key-123',

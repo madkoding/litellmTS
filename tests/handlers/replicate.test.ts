@@ -1,13 +1,6 @@
 const mockPredictionsCreate = jest.fn();
 const mockWait = jest.fn();
 
-jest.mock('eventsource', () => {
-  return jest.fn().mockImplementation(() => ({
-    addEventListener: jest.fn(),
-    close: jest.fn(),
-  }));
-});
-
 jest.mock('replicate', () => {
   return {
     __esModule: true,

@@ -19,12 +19,4 @@ export function registerEmbeddingHandler(prefix: string, handler: EmbeddingHandl
   embeddingHandlers[prefix] = handler;
 }
 
-/** @internal Get the completion handler registry. */
-export function getCompletionHandlers(): Record<string, Handler> {
-  return completionHandlers;
-}
-
-/** @internal Get the embedding handler registry. */
-export function getEmbeddingHandlers(): Record<string, EmbeddingHandler> {
-  return embeddingHandlers;
-}
+export { completionHandlers, embeddingHandlers };

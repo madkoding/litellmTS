@@ -1,5 +1,4 @@
 import Replicate, { type Prediction } from 'replicate';
-import { EventSource } from 'eventsource';
 
 import {
   HandlerParams,
@@ -8,15 +7,6 @@ import {
 } from '../types';
 import { combinePrompts } from '../utils/combinePrompts';
 import { toUsage } from '../utils/toUsage';
-import { getUnixTimestamp } from '../utils/getUnixTimestamp';
-
-async function sleep(time: number): Promise<unknown> {
-  return new Promise((res) => {
-    setTimeout(() => {
-      res({});
-    }, time);
-  });
-}
 
 async function handleNonStreamingPrediction(
   prompt: string,
@@ -32,7 +22,7 @@ async function handleNonStreamingPrediction(
   return {
     model: modelName,
     usage: toUsage(prompt, output),
-    created: getUnixTimestamp(),
+    created: Math.floor(Date.now() / 1000),
     choices: [
       {
         message: {
@@ -54,9 +44,7 @@ async function* handleStreamingPrediction(
     throw new Error('Prediction does not support streaming');
   }
 
-  const source = new EventSource(prediction.urls.stream, {
-    withCredentials: true,
-  });
+  const source = new EventSource(prediction.urls.stream);
 
   let results: string[] = [];
   let done = false;
@@ -77,10 +65,9 @@ async function* handleStreamingPrediction(
 
   while (!done) {
     await promise;
-    await sleep(500);
     const combined = results.reduce((acc, curr) => acc + curr, '');
     yield {
-      created: getUnixTimestamp(),
+      created: Math.floor(Date.now() / 1000),
       usage: toUsage(prompt, combined),
       choices: [
         {
@@ -131,7 +118,7 @@ export async function ReplicateHandler(
   return handleNonStreamingPrediction(prompt, prediction, replicate, modelName);
 }
 
-import { registerModelProvider } from '../models/registry';
+import { registerModelProvider } from '../models';
 
 registerModelProvider('replicate', async ({ apiKey } = {}) => {
   const key = apiKey ?? process.env.REPLICATE_API_KEY;

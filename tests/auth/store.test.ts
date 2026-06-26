@@ -13,7 +13,6 @@ import {
   setProviderCredentials,
   getCopilotCredentials,
   setCopilotCredentials,
-  getAnthropicCredentials,
   clearCredentials,
   decrypt,
 } from '../../src/auth/store';
@@ -106,20 +105,6 @@ describe('auth/store', () => {
 
       const writeCall = JSON.parse(decrypt(mockWriteFile.mock.calls[0][1]));
       expect(writeCall['github-copilot']).toEqual(creds);
-    });
-  });
-
-  describe('getAnthropicCredentials', () => {
-    it('returns null when not in store', async () => {
-      mockReadFile.mockRejectedValueOnce(enoent());
-      const result = await getAnthropicCredentials();
-      expect(result).toBeNull();
-    });
-
-    it('returns stored credentials', async () => {
-      mockReadFile.mockResolvedValueOnce(JSON.stringify({ anthropic: { apiKey: 'sk-ant-xxx' } }));
-      const result = await getAnthropicCredentials();
-      expect(result).toEqual({ apiKey: 'sk-ant-xxx' });
     });
   });
 

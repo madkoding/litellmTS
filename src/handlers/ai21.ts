@@ -5,7 +5,7 @@ import {
   ResultStreaming,
 } from '../types';
 import { combinePrompts } from '../utils/combinePrompts';
-import { getUnixTimestamp } from '../utils/getUnixTimestamp';
+
 import { iterateSSEStream } from '../utils/sse';
 
 const FINISH_REASON_MAP: Record<string, FinishReason> = {
@@ -68,7 +68,7 @@ function toResponse(response: AI21Response, model: string): ResultNotStreaming {
   });
   return {
     model: model,
-    created: getUnixTimestamp(),
+    created: Math.floor(Date.now() / 1000),
     usage: toUsage(response),
     choices: choices,
   };
@@ -122,7 +122,7 @@ export async function AI21Handler(
       const parsed = JSON.parse(payload) as AI21StreamChunk;
       return {
         model: modelName,
-        created: getUnixTimestamp(),
+        created: Math.floor(Date.now() / 1000),
         choices: [
           {
             delta: { content: parsed.text ?? '', role: 'assistant' },

@@ -185,4 +185,14 @@ export const OPENAI_LIKE_MAPPINGS: Record<string, OpenAILikeConfig> = {
     baseUrl: 'https://api.venice.ai/api/v1',
     apiKeyEnv: 'VENICE_API_KEY',
   },
+  'mistral/': {
+    name: 'Mistral',
+    baseUrl: 'https://api.mistral.ai/v1',
+    apiKeyEnv: 'MISTRAL_API_KEY',
+  },
+  'deepinfra/': {
+    name: 'DeepInfra',
+    baseUrl: 'https://api.deepinfra.com/v1/openai',
+    apiKeyEnv: 'DEEPINFRA_API_KEY',
+  },
 };

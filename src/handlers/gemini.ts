@@ -1,7 +1,13 @@
 import { GoogleGenAI } from '@google/genai';
 
 import type { HandlerParams, ResultNotStreaming, ResultStreaming } from '../types';
-import { toGeminiContent, toResponse, toStreamingResponse } from '../utils/gemini';
+import {
+  toGeminiContent,
+  toGeminiTools,
+  toGeminiToolConfig,
+  toResponse,
+  toStreamingResponse,
+} from '../utils/gemini';
 
 export async function GeminiHandler(
   params: HandlerParams,
@@ -15,18 +21,24 @@ export async function GeminiHandler(
   const client = new GoogleGenAI({ apiKey });
 
   const contents = toGeminiContent(params.messages);
+  const tools = toGeminiTools(params.tools);
+  const toolConfig = toGeminiToolConfig(params.tool_choice);
+
+  const config: Record<string, unknown> = {
+    temperature: params.temperature ?? undefined,
+    topP: params.top_p ?? undefined,
+    maxOutputTokens: params.max_tokens ?? undefined,
+    stopSequences: params.stop ? (Array.isArray(params.stop) ? params.stop : [params.stop]) : undefined,
+  };
+  if (tools) config.tools = tools;
+  if (toolConfig) config.toolConfig = toolConfig;
 
   try {
     if (params.stream) {
       const stream = await client.models.generateContentStream({
         model: modelName,
         contents,
-        config: {
-          temperature: params.temperature ?? undefined,
-          topP: params.top_p ?? undefined,
-          maxOutputTokens: params.max_tokens ?? undefined,
-          stopSequences: params.stop ? (Array.isArray(params.stop) ? params.stop : [params.stop]) : undefined,
-        },
+        config: config as any,
       });
       return toStreamingResponse(stream, modelName);
     }
@@ -34,12 +46,7 @@ export async function GeminiHandler(
     const response = await client.models.generateContent({
       model: modelName,
       contents,
-      config: {
-        temperature: params.temperature ?? undefined,
-        topP: params.top_p ?? undefined,
-        maxOutputTokens: params.max_tokens ?? undefined,
-        stopSequences: params.stop ? (Array.isArray(params.stop) ? params.stop : [params.stop]) : undefined,
-      },
+      config: config as any,
     });
     return toResponse(response, modelName);
   } catch (err) {
@@ -47,7 +54,7 @@ export async function GeminiHandler(
   }
 }
 
-import { registerModelProvider } from '../models/registry';
+import { registerModelProvider } from '../models';
 
 registerModelProvider('gemini', async ({ apiKey } = {}) => {
   const key = apiKey ?? process.env.GEMINI_API_KEY;

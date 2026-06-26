@@ -1,4 +1,12 @@
-import type { ModelInfo, ProviderInfo } from './types';
+export interface ModelInfo {
+  id: string;
+  provider: string;
+  created?: number;
+}
+
+export interface ProviderInfo {
+  name: string;
+}
 
 type ModelFetcher = (params?: { apiKey?: string; baseUrl?: string }) => Promise<ModelInfo[]>;
 
@@ -13,7 +21,7 @@ export function registerModelProvider(provider: string, fetcher: ModelFetcher): 
 interface TagsModel {
   name: string;
 }
-  
+
 interface OpenAIModel {
   id: string;
 }
@@ -59,7 +67,6 @@ export async function listModels(
 
   if (opts?.baseUrl) {
     const baseUrl = opts.baseUrl.replace(/\/+$/, '');
-
     data = await tryOllamaTags(baseUrl, provider, opts.apiKey);
     if (!data || data.length === 0) {
       data = await tryOpenAIModels(baseUrl, provider, opts.apiKey);
@@ -79,7 +86,6 @@ export async function listModels(
 export function listProviders(): ProviderInfo[] {
   return Array.from(fetchers.keys()).map((key) => ({
     name: key,
-    hasModelList: true,
   }));
 }
 

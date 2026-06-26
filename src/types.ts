@@ -26,20 +26,32 @@ export interface ConsistentResponseChoice {
   message: {
     role: string | null | undefined;
     content: string | null | undefined;
+    reasoning?: string;
     function_call?: {
       arguments: string;
       name: string;
     };
+    tool_calls?: {
+      id: string;
+      type: 'function';
+      function: { name: string; arguments: string };
+    }[];
   };
 }
 
 export interface ConsistentResponseStreamingChoice
   extends Omit<ConsistentResponseChoice, 'message'> {
-  delta: Omit<ConsistentResponseChoice['message'], 'function_call'> & {
+  delta: Omit<ConsistentResponseChoice['message'], 'function_call' | 'tool_calls'> & {
+    reasoning?: string;
     function_call?: {
       arguments?: string;
       name?: string;
     };
+    tool_calls?: {
+      id?: string;
+      type?: 'function';
+      function?: { name?: string; arguments?: string };
+    }[];
   };
 }
 
@@ -77,6 +89,9 @@ export interface HandlerParamsBase {
   top_p?: number | null;
   stop?: string | null | string[];
   presence_penalty?: number | null;
+  frequency_penalty?: number | null;
+  repetition_penalty?: number | null;
+  top_k?: number | null;
   n?: number | null;
   max_tokens?: number | null;
   apiKey?: string;
@@ -89,6 +104,17 @@ export interface HandlerParamsBase {
     | 'none'
     | 'auto'
     | { name: string };
+  tools?: {
+    type: 'function';
+    function: {
+      name: string;
+      description?: string;
+      parameters?: Record<string, unknown>;
+    };
+  }[];
+  tool_choice?: 'none' | 'auto' | { type: 'function'; function: { name: string } };
+  reasoning_effort?: 'none' | 'low' | 'medium' | 'high';
+  thinking?: { type: 'enabled' | 'disabled'; budget_tokens?: number };
 }
 
 export interface HandlerParamsStreaming extends HandlerParamsBase {

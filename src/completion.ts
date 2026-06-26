@@ -1,6 +1,5 @@
 import { getHandler } from './handlers/getHandler';
 import {
-  Handler,
   HandlerParams,
   HandlerParamsNotStreaming,
   HandlerParamsStreaming,
@@ -8,11 +7,11 @@ import {
   ResultNotStreaming,
   ResultStreaming,
 } from './types';
-import { getCompletionHandlers } from './registry';
+import { completionHandlers } from './registry';
 
 import './handlers';
 
-export const MODEL_HANDLER_MAPPINGS: Record<string, Handler> = getCompletionHandlers();
+export const MODEL_HANDLER_MAPPINGS = completionHandlers;
 
 /**
  * Send a chat completion request to the provider that matches the model prefix.

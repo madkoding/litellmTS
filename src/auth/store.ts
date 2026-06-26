@@ -37,27 +37,8 @@ export function decrypt(payload: string): string {
   return plaintext;
 }
 
-/** GitHub Copilot OAuth credentials. */
-export interface CopilotCredentials {
-  githubToken: string;
-  copilotToken: string;
-  expiresAt: number;
-  enterpriseUrl?: string;
-}
-
-/** Stored Anthropic API key. */
-export interface AnthropicCredentials {
-  apiKey: string;
-}
-
-export type ProviderCredentials = Record<string, unknown>;
-
 const STORE_DIR = join(homedir(), '.litellm');
 const STORE_PATH = join(STORE_DIR, 'auth.json');
-
-function isNotFound(err: unknown): boolean {
-  return (err as NodeJS.ErrnoException)?.code === 'ENOENT';
-}
 
 async function ensureDir(): Promise<void> {
   await mkdir(STORE_DIR, { recursive: true });
@@ -71,7 +52,7 @@ async function readStore(): Promise<Record<string, unknown>> {
     }
     return JSON.parse(raw) as Record<string, unknown>;
   } catch (err) {
-    if (isNotFound(err)) return {};
+    if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') return {};
     throw err;
   }
 }
@@ -91,7 +72,7 @@ export async function getProviderCredentials<T>(
     if (!raw) return null;
     return raw as T;
   } catch (err) {
-    if (isNotFound(err)) return null;
+    if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') return null;
     throw err;
   }
 }
@@ -106,14 +87,14 @@ export async function setProviderCredentials(
   await writeStore(store);
 }
 
-export async function getCopilotCredentials(): Promise<CopilotCredentials | null> {
-  const legacy = await getProviderCredentials<CopilotCredentials>('github-copilot');
+export async function getCopilotCredentials() {
+  const legacy = await getProviderCredentials<{ githubToken: string; copilotToken: string; expiresAt: number; enterpriseUrl?: string }>('github-copilot');
   if (legacy) return legacy;
 
   try {
     const store = await readStore();
     if (store.copilotToken && store.githubToken) {
-      const migrated: CopilotCredentials = {
+      const migrated = {
         githubToken: store.githubToken as string,
         copilotToken: store.copilotToken as string,
         expiresAt: store.expiresAt as number,
@@ -129,19 +110,9 @@ export async function getCopilotCredentials(): Promise<CopilotCredentials | null
 }
 
 export async function setCopilotCredentials(
-  creds: CopilotCredentials,
+  creds: { githubToken: string; copilotToken: string; expiresAt: number; enterpriseUrl?: string },
 ): Promise<void> {
   await setProviderCredentials('github-copilot', creds as unknown as Record<string, unknown>);
-}
-
-export async function getAnthropicCredentials(): Promise<AnthropicCredentials | null> {
-  return getProviderCredentials<AnthropicCredentials>('anthropic');
-}
-
-export async function setAnthropicCredentials(
-  creds: AnthropicCredentials,
-): Promise<void> {
-  await setProviderCredentials('anthropic', creds as unknown as Record<string, unknown>);
 }
 
 export async function clearCredentials(): Promise<void> {

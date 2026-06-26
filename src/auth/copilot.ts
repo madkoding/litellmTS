@@ -1,14 +1,12 @@
 /* eslint-disable no-console */
 import { execFileSync } from 'node:child_process';
+import { setTimeout } from 'node:timers/promises';
 import { setCopilotCredentials } from './store';
+import { exchangeCopilotToken } from './refresh';
+import { USER_AGENT } from './constants';
 
 const CLIENT_ID = 'Iv1.b507a08c87ecfe98';
 const SCOPES = 'read:user';
-const COPILOT_API = 'https://api.githubcopilot.com';
-const USER_AGENT = 'GitHubCopilotChat/0.35.0';
-const EDITOR_VERSION = 'vscode/1.107.0';
-const EDITOR_PLUGIN_VERSION = 'copilot-chat/0.35.0';
-const COPILOT_INTEGRATION_ID = 'vscode-chat';
 
 interface DeviceCodeResponse {
   device_code: string;
@@ -23,15 +21,6 @@ interface AccessTokenResponse {
   scope?: string;
   error?: string;
   error_description?: string;
-}
-
-interface CopilotTokenResponse {
-  token: string;
-  expires_at: number;
-}
-
-async function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function openBrowser(url: string): void {
@@ -85,7 +74,7 @@ async function pollAccessToken(
 
   while (attempts < maxAttempts) {
     attempts++;
-    await sleep(interval * 1000);
+    await setTimeout(interval * 1000);
 
     const res = await fetch('https://github.com/login/oauth/access_token', {
       method: 'POST',
@@ -127,39 +116,6 @@ async function pollAccessToken(
   }
 
   throw new Error('Tiempo de espera agotado para la autenticación');
-}
-
-async function exchangeCopilotToken(
-  githubToken: string,
-): Promise<CopilotTokenResponse> {
-  const res = await fetch(`${COPILOT_API}/copilot_internal/v2/token`, {
-    headers: {
-      Authorization: `Bearer ${githubToken}`,
-      'User-Agent': USER_AGENT,
-      'Editor-Version': EDITOR_VERSION,
-      'Editor-Plugin-Version': EDITOR_PLUGIN_VERSION,
-      'Copilot-Integration-Id': COPILOT_INTEGRATION_ID,
-    },
-  });
-
-  if (!res.ok) {
-    throw new Error(
-      `Error al obtener token de Copilot: ${res.status} ${res.statusText}`,
-    );
-  }
-
-  const data = (await res.json()) as CopilotTokenResponse & {
-    error?: string;
-    error_description?: string;
-  };
-
-  if (data.error) {
-    throw new Error(
-      data.error_description ?? `Error de Copilot: ${data.error}`,
-    );
-  }
-
-  return { token: data.token, expires_at: data.expires_at };
 }
 
 /**

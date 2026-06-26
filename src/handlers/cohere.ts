@@ -6,8 +6,8 @@ import {
   ResultNotStreaming,
   Message,
 } from '../types';
-import { getUnixTimestamp } from '../utils/getUnixTimestamp';
-import { registerModelProvider } from '../models/registry';
+
+import { registerModelProvider } from '../models';
 
 function toChatHistory(messages: Message[]): {
   message: string;
@@ -87,7 +87,7 @@ export async function CohereHandler(
 
     return {
       model: modelName,
-      created: getUnixTimestamp(),
+      created: Math.floor(Date.now() / 1000),
       usage: meta?.tokens
         ? {
             prompt_tokens: meta.tokens.inputTokens ?? 0,
@@ -131,7 +131,7 @@ async function* toStreamingResponse(
     if (event.eventType === 'text-generation') {
       yield {
         model,
-        created: getUnixTimestamp(),
+        created: Math.floor(Date.now() / 1000),
         choices: [
           {
             delta: { content: event.text, role: 'assistant' },
@@ -143,7 +143,7 @@ async function* toStreamingResponse(
     } else if (event.eventType === 'stream-end') {
       yield {
         model,
-        created: getUnixTimestamp(),
+        created: Math.floor(Date.now() / 1000),
         choices: [
           {
             delta: { content: '', role: 'assistant' },

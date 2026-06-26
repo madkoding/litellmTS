@@ -10,13 +10,7 @@ import {
   ResultStreaming,
   ResultNotStreaming,
 } from '../types';
-import { registerModelProvider } from '../models/registry';
-
-function toOpenAIMessages(
-  messages: HandlerParams['messages'],
-): ChatCompletionMessageParam[] {
-  return messages as ChatCompletionMessageParam[];
-}
+import { registerModelProvider } from '../models';
 
 async function* toStreamingResponse(
   response: AsyncIterable<ChatCompletionChunk>,
@@ -31,6 +25,8 @@ async function* toStreamingResponse(
             content: openAIChoice.delta.content,
             role: openAIChoice.delta.role,
             function_call: openAIChoice.delta.function_call,
+            tool_calls: openAIChoice.delta.tool_calls,
+            reasoning: (openAIChoice.delta as any).reasoning,
           },
           index: openAIChoice.index,
           finish_reason: openAIChoice.finish_reason,
@@ -59,7 +55,7 @@ export async function OpenAIHandler(
     baseURL: baseUrl,
   });
 
-  const messages = toOpenAIMessages(completionsParams.messages);
+  const messages = completionsParams.messages as ChatCompletionMessageParam[];
 
   if (params.stream) {
     let response: AsyncIterable<ChatCompletionChunk>;
@@ -98,6 +94,7 @@ export async function OpenAIHandler(
         role: c.message.role,
         content: c.message.content,
         function_call: c.message.function_call ?? undefined,
+        tool_calls: c.message.tool_calls as any,
       },
     })),
     usage: response.usage

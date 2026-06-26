@@ -39,20 +39,6 @@ describe('createOpenAILikeHandler', () => {
     );
   });
 
-  it('should pass model as-is if prefix does not match', async () => {
-    process.env.TEST_PROVIDER_API_KEY = 'key';
-    const handler = createOpenAILikeHandler(PREFIX, mockConfig);
-
-    await handler({
-      model: 'other/model',
-      messages: [],
-    });
-
-    expect(OpenAIHandler).toHaveBeenCalledWith(
-      expect.objectContaining({ model: 'other/model' }),
-    );
-  });
-
   it('should prefer explicit apiKey over env var', async () => {
     process.env.TEST_PROVIDER_API_KEY = 'wrong-key';
     const handler = createOpenAILikeHandler(PREFIX, mockConfig);

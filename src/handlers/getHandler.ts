@@ -13,10 +13,7 @@ export function getHandler<T>(
   mapping: Record<string, T>,
 ): T | null {
   const patterns = Object.keys(mapping);
-  const handlerKey = patterns.find((pattern) => {
-    const regex = new RegExp(`^${pattern}`);
-    return model.match(regex);
-  });
+  const handlerKey = patterns.find((pattern) => model.startsWith(pattern));
   if (!handlerKey) {
     return null;
   }

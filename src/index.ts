@@ -9,3 +9,5 @@ export { completion } from './completion';
 export { embedding } from './embedding';
 export { listModels, listProviders, clearModelCache } from './models';
 export { login, loginAnthropic, getValidToken, getAnthropicKey } from './auth';
+export { renderQwenTemplate } from './utils/renderQwenTemplate';
+export { parseQwenToolCalls } from './utils/parseQwenToolCalls';

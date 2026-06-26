@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 import * as readline from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
-import { setAnthropicCredentials } from './store';
+import { setProviderCredentials } from './store';
 
 /**
  * Interactive CLI prompt to configure and validate an Anthropic API key.
@@ -51,6 +51,6 @@ export async function loginAnthropic(): Promise<void> {
     );
   }
 
-  await setAnthropicCredentials({ apiKey: trimmed });
+  await setProviderCredentials('anthropic', { apiKey: trimmed });
   console.log('✅ Key de Anthropic guardada exitosamente en ~/.litellm/auth.json');
 }

@@ -1,7 +1,7 @@
 import { OpenAIHandler } from './openai';
 import type { Handler, HandlerParams, Result } from '../types';
 import type { OpenAILikeConfig } from '../mappings/openaiLike';
-import { registerModelProvider } from '../models/registry';
+import { registerModelProvider } from '../models';
 
 export function createOpenAILikeHandler(prefix: string, config: OpenAILikeConfig): Handler {
   return async (params: HandlerParams): Promise<Result> => {
@@ -11,9 +11,7 @@ export function createOpenAILikeHandler(prefix: string, config: OpenAILikeConfig
         `${config.name} requires an API key. Set the ${config.apiKeyEnv} environment variable or pass apiKey in params.`,
       );
     }
-    const modelName = params.model.startsWith(prefix)
-      ? params.model.slice(prefix.length)
-      : params.model;
+    const modelName = params.model.slice(prefix.length);
     return OpenAIHandler({
       ...params,
       model: modelName,

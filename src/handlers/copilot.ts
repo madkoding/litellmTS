@@ -5,14 +5,9 @@ import {
   type ConsistentResponseUsage,
   type FinishReason,
 } from '../types';
-import { getUnixTimestamp } from '../utils/getUnixTimestamp';
-import { getValidToken } from '../auth';
-
-const COPILOT_API = 'https://api.githubcopilot.com';
-const USER_AGENT = 'GitHubCopilotChat/0.35.0';
-const EDITOR_VERSION = 'vscode/1.107.0';
-const EDITOR_PLUGIN_VERSION = 'copilot-chat/0.35.0';
-const COPILOT_INTEGRATION_ID = 'vscode-chat';
+import { getValidToken } from '../auth/refresh';
+import { iterateSSEStream } from '../utils/sse';
+import { COPILOT_API, USER_AGENT, EDITOR_VERSION, EDITOR_PLUGIN_VERSION, COPILOT_INTEGRATION_ID } from '../auth/constants';
 
 interface StreamChoice {
   delta?: { content?: string | null; role?: string | null };
@@ -52,46 +47,22 @@ function toUsage(data: {
 async function* toStreamingResponse(
   response: Response,
 ): ResultStreaming {
-  const reader = response.body?.getReader();
-  if (!reader) throw new Error('No response body');
-
-  const decoder = new TextDecoder();
-  let buffer = '';
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split('\n');
-    buffer = lines.pop() ?? '';
-
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed?.startsWith('data: ')) continue;
-      const payload = trimmed.slice(6);
-      if (payload === '[DONE]') return;
-
-      try {
-        const parsed = JSON.parse(payload) as StreamResponse;
-        yield {
-          model: parsed.model,
-          created: parsed.created,
-          usage: toUsage(parsed),
-          choices: (parsed.choices ?? []).map((c) => ({
-            delta: {
-              content: c.delta?.content ?? null,
-              role: c.delta?.role ?? null,
-            },
-            index: c.index ?? 0,
-            finish_reason: (c.finish_reason as FinishReason | null) ?? null,
-          })),
-        };
-      } catch {
-        // skip parse errors
-      }
-    }
-  }
+  yield* iterateSSEStream(response, (payload) => {
+    const parsed = JSON.parse(payload) as StreamResponse;
+    return {
+      model: parsed.model,
+      created: parsed.created,
+      usage: toUsage(parsed),
+      choices: (parsed.choices ?? []).map((c) => ({
+        delta: {
+          content: c.delta?.content ?? null,
+          role: c.delta?.role ?? null,
+        },
+        index: c.index ?? 0,
+        finish_reason: (c.finish_reason as FinishReason | null) ?? null,
+      })),
+    };
+  });
 }
 
 export async function CopilotHandler(
@@ -163,7 +134,7 @@ export async function CopilotHandler(
   );
 
   const result: ResultNotStreaming = {
-    created: (data.created as number) ?? getUnixTimestamp(),
+    created: (data.created as number) ?? Math.floor(Date.now() / 1000),
     model: data.model as string | undefined,
     usage: toUsage(data),
     choices,
@@ -172,7 +143,7 @@ export async function CopilotHandler(
   return result;
 }
 
-import { registerModelProvider } from '../models/registry';
+import { registerModelProvider } from '../models';
 
 registerModelProvider('copilot', async () => []);
 

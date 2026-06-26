@@ -63,7 +63,8 @@ registerModelProvider('gemini', async ({ apiKey } = {}) => {
   const pager = await client.models.list();
   const models: { id: string; provider: string }[] = [];
   for await (const m of pager) {
-    models.push({ id: (m as any).name ?? (m as any).displayName, provider: 'gemini' });
+    const mi = m as { name?: string; displayName?: string };
+    models.push({ id: mi.name ?? mi.displayName ?? '', provider: 'gemini' });
   }
   return models;
 });

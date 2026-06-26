@@ -57,8 +57,8 @@ registerModelProvider('anthropic', async ({ apiKey } = {}) => {
   const res = await fetch('https://api.anthropic.com/v1/models', {
     headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01' },
   });
-  const { data } = await res.json();
-  return data.map((m: any) => ({ id: m.id, provider: 'anthropic' }));
+  const { data } = await res.json() as { data: { id: string }[] };
+  return data.map((m) => ({ id: m.id, provider: 'anthropic' }));
 });
 
 import { registerCompletionHandler } from '../registry';

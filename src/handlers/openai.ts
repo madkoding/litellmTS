@@ -28,7 +28,7 @@ async function* toStreamingResponse(
             role: openAIChoice.delta.role,
             function_call: openAIChoice.delta.function_call,
             tool_calls: openAIChoice.delta.tool_calls,
-            reasoning: (openAIChoice.delta as any).reasoning,
+            reasoning: (openAIChoice.delta as { reasoning?: string }).reasoning,
           },
           index: openAIChoice.index,
           finish_reason: openAIChoice.finish_reason,
@@ -94,7 +94,7 @@ export async function OpenAIHandler(
         role: c.message.role,
         content: c.message.content,
         function_call: c.message.function_call ?? undefined,
-        tool_calls: c.message.tool_calls as any,
+        tool_calls: c.message.tool_calls as { id: string; type: 'function'; function: { name: string; arguments: string } }[] | undefined,
       },
     })),
     usage: response.usage
@@ -115,8 +115,8 @@ registerModelProvider('openai', async ({ apiKey } = {}) => {
   const res = await fetch('https://api.openai.com/v1/models', {
     headers: { Authorization: `Bearer ${key}` },
   });
-  const { data } = await res.json();
-  return data.map((m: any) => ({ id: m.id, provider: 'openai', created: m.created }));
+  const { data } = await res.json() as { data: { id: string; created?: number }[] };
+  return data.map((m) => ({ id: m.id, provider: 'openai', created: m.created }));
 });
 
 import { registerCompletionHandler } from '../registry';

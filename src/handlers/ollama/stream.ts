@@ -22,7 +22,7 @@ async function* iterateStream<C>(
 
   while (!done) {
     const next = await reader.read();
-    if (!next.value) { done = true; break; }
+    if (!next.value) { break; }
     done = next.done;
     const decoded = new TextDecoder().decode(next.value);
     for (const line of decoded.split('\n')) {
@@ -34,21 +34,26 @@ async function* iterateStream<C>(
         const payload = trimmed.slice(6);
         try {
           yield* strategy.emit(strategy.parseLine(payload), ctx);
-        } catch (e: any) {
-          lastError = `Failed to parse SSE chunk: ${(e.message || e).slice(0, 100)} | raw: ${payload.slice(0, 200)}`;
+        } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : String(e);
+          lastError = `Failed to parse SSE chunk: ${msg.slice(0, 100)} | raw: ${payload.slice(0, 200)}`;
         }
       } else {
         try {
           yield* strategy.emit(strategy.parseLine(trimmed), ctx);
-        } catch (e: any) {
-          lastError = `Failed to parse chunk: ${(e.message || e).slice(0, 100)} | raw: ${trimmed.slice(0, 200)}`;
+        } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : String(e);
+          lastError = `Failed to parse chunk: ${msg.slice(0, 100)} | raw: ${trimmed.slice(0, 200)}`;
         }
       }
     }
   }
 
   if (strategy.flush) yield* strategy.flush(ctx);
-  if (lastError) console.error(`[${strategy.tag}] ${lastError}`);
+  if (lastError) {
+    // eslint-disable-next-line no-console
+    console.error(`[${strategy.tag}] ${lastError}`);
+  }
 }
 
 const nativeOllamaStrategy: StreamStrategy<OllamaResponseChunk> = {

@@ -164,8 +164,8 @@ registerModelProvider('cohere', async ({ apiKey } = {}) => {
     headers: { Authorization: `Bearer ${key}` },
   });
   if (!res.ok) return [];
-  const json = await res.json();
-  return (json.models ?? []).map((m: any) => ({ id: m.id, provider: 'cohere' }));
+  const json = await res.json() as { models?: { id: string }[] };
+  return (json.models ?? []).map((m) => ({ id: m.id, provider: 'cohere' }));
 });
 
 import { registerCompletionHandler } from '../registry';

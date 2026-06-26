@@ -144,7 +144,7 @@ export async function CopilotHandler(
 
 import { registerModelProvider } from '../models';
 
-registerModelProvider('copilot', async () => []);
+registerModelProvider('copilot', () => Promise.resolve([]));
 
 import { registerCompletionHandler } from '../registry';
 registerCompletionHandler('copilot/', CopilotHandler);

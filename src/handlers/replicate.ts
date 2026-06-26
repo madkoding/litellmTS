@@ -135,8 +135,8 @@ registerModelProvider('replicate', async ({ apiKey } = {}) => {
     headers: { Authorization: `Bearer ${key}` },
   });
   if (!res.ok) return [];
-  const { results } = await res.json();
-  return (results ?? []).map((m: any) => ({ id: `${m.owner}/${m.name}`, provider: 'replicate' }));
+  const { results } = await res.json() as { results?: { owner: string; name: string }[] };
+  return (results ?? []).map((m) => ({ id: `${m.owner}/${m.name}`, provider: 'replicate' }));
 });
 
 import { registerCompletionHandler } from '../registry';

@@ -90,7 +90,7 @@ Reminder:
   let consecutiveFailures = 0;
   for (let i = 0; i < msgs.length; i++) {
     const msg = msgs[i];
-    let content = (msg.content || '').trim();
+    let content = (msg.content ?? '').trim();
 
     if (content.includes('<|think_off|>')) {
       thinking = false;
@@ -118,7 +118,7 @@ Reminder:
           }
           const args = safeParseArgs(fn.arguments);
           for (const [k, v] of Object.entries(args)) {
-            const sv = typeof v === 'object' ? JSON.stringify(v) : String(v);
+            const sv = typeof v === 'object' ? JSON.stringify(v) : (v as string | number | boolean).toString();
             as += '<parameter=' + k + '>\n' + sv + '\n</parameter>\n';
           }
           as += '</function>\n</tool_call>\n';

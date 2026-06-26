@@ -55,13 +55,13 @@ export function toAnthropicMessages(input: Message[]): {
     }
 
     if (msg.role === 'tool') {
-      const content: Anthropic.ContentBlock[] = [];
+      const content: Anthropic.ContentBlockParam[] = [];
       if (msg.content) {
         content.push({
           type: 'tool_result',
           tool_use_id: msg.tool_call_id ?? '',
           content: msg.content,
-        } as any);
+        });
       }
       messages.push({
         role: 'user',
@@ -237,7 +237,7 @@ export async function* toAnthropicStreamingResponse(
             created: nowSec(),
             choices: [
               {
-                delta: { content: null, reasoning: (event.delta as any).thinking, role: 'assistant' },
+                delta: { content: null, reasoning: (event.delta as { thinking: string }).thinking, role: 'assistant' },
                 finish_reason: null,
                 index: 0,
               },

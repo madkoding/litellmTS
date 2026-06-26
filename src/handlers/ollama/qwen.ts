@@ -58,8 +58,9 @@ async function* iterateQwenGenerate(
             yield toStreamingChunkFromDelta(buffer, model, prompt);
             buffer = '';
           }
-        } catch (e: any) {
-          lastError = `Failed to parse generate chunk: ${(e.message || e).slice(0, 100)} | raw: ${trimmed.slice(0, 200)}`;
+        } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : String(e);
+          lastError = `Failed to parse generate chunk: ${msg.slice(0, 100)} | raw: ${trimmed.slice(0, 200)}`;
         }
       }
     } else {
@@ -72,17 +73,18 @@ async function* iterateQwenGenerate(
   }
 
   if (lastError) {
+    // eslint-disable-next-line no-console
     console.error(`[iterateQwenGenerate] ${lastError}`);
   }
 }
 
 export async function qwenCompletionPath(
-  params: { model: string; messages: { role: string; content: string | null; name?: string; tool_call_id?: string; tool_calls?: { id: string; type: string; function: { name: string; arguments: string } }[] }[]; stream?: boolean | null; baseUrl?: string; apiKey?: string; max_tokens?: number | null; temperature?: number | null; top_p?: number | null; repetition_penalty?: number | null; frequency_penalty?: number | null; top_k?: number | null; tools?: { type: 'function'; function: { name: string; description?: string; parameters?: Record<string, unknown> } }[]; think?: boolean },
+  params: { model: string; messages: { role: string; content: string | null; name?: string; tool_call_id?: string; tool_calls?: { id: string; type: string; function: { name: string; arguments: string } }[] }[]; stream?: boolean | null; baseUrl?: string; apiKey?: string; max_tokens?: number | null; temperature?: number | null; top_p?: number | null; repetition_penalty?: number | null; frequency_penalty?: number | null; top_k?: number | null; tools?: { type: 'function'; function: { name: string; description?: string; parameters?: Record<string, unknown> } }[]; thinking?: { type: 'enabled' | 'disabled'; budget_tokens?: number } },
   model: string,
 ): Promise<ResultNotStreaming | ResultStreaming> {
-  const thinkingEnabled = (params as any).think !== false;
+  const thinkingEnabled = params.thinking?.type !== 'disabled';
   const rendered = renderQwenTemplate({
-    messages: params.messages as any,
+    messages: params.messages as import('../../types').Message[],
     tools: params.tools,
     addGenerationPrompt: true,
     enableThinking: thinkingEnabled,
@@ -103,14 +105,15 @@ export async function qwenCompletionPath(
   );
 
   if (!res.ok) {
-    let errorBody = '';
+    let errorBody: string;
     try { errorBody = await res.text(); } catch { errorBody = ''; }
     const prefix = `[Ollama/Qwen] Endpoint: ${endpoint} | Model: ${model}`;
     let detail = `HTTP ${res.status}`;
     if (errorBody) {
       try {
-        const parsed = JSON.parse(errorBody);
-        detail = parsed.error?.message || parsed.error || errorBody;
+        const parsed: unknown = JSON.parse(errorBody);
+        const err = (parsed as { error?: { message?: string } | string })?.error;
+        detail = typeof err === 'string' ? err : (err?.message ?? errorBody);
       } catch {
         detail = errorBody.slice(0, 500);
       }

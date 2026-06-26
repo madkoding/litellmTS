@@ -62,7 +62,7 @@ export function toResponse(
   content: string,
   model: string,
   prompt: string,
-  toolCalls?: Array<{ type: 'function'; function: { name: string; arguments: string } }>,
+  toolCalls?: { type: 'function'; function: { name: string; arguments: string } }[],
   reasoning?: string,
 ): ResultNotStreaming {
   return {
@@ -74,7 +74,7 @@ export function toResponse(
         message: {
           content,
           role: 'assistant',
-          tool_calls: toolCalls as any,
+          tool_calls: toolCalls as { id: string; type: 'function'; function: { name: string; arguments: string } }[] | undefined,
           ...(reasoning ? { reasoning } : {}),
         },
         finish_reason: toolCalls ? 'tool_calls' : 'stop',

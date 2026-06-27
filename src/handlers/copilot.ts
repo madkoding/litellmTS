@@ -7,9 +7,11 @@ import {
 } from '../types';
 import { getValidToken } from '../auth/refresh';
 import { iterateSSEStream } from '../utils/sse';
+import { fetchWithTimeout } from '../utils/fetchWithTimeout';
 import { COPILOT_API, USER_AGENT, EDITOR_VERSION, EDITOR_PLUGIN_VERSION, COPILOT_INTEGRATION_ID } from '../auth/constants';
 import { stripPrefix } from '../utils/stripPrefix';
 import { nowSec } from '../utils/nowSec';
+import { wrapApiError } from '../utils/wrapApiError';
 
 interface StreamChoice {
   delta?: { content?: string | null; role?: string | null };
@@ -99,7 +101,7 @@ export async function CopilotHandler(
   if (params.stop != null) body.stop = params.stop;
   if (params.presence_penalty != null) body.presence_penalty = params.presence_penalty;
 
-  const response = await fetch(`${baseUrl}/chat/completions`, {
+  const response = await fetchWithTimeout(`${baseUrl}/chat/completions`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -110,9 +112,7 @@ export async function CopilotHandler(
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(
-      `Copilot API error: ${response.status} ${response.statusText}\n${text}`,
-    );
+    throw wrapApiError('Copilot', new Error(`${response.status} ${response.statusText}\n${text}`));
   }
 
   if (params.stream) {

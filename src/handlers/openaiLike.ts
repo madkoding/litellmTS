@@ -2,6 +2,7 @@ import { OpenAIHandler } from './openai';
 import type { Handler, HandlerParams, Result } from '../types';
 import type { OpenAILikeConfig } from '../mappings/openaiLike';
 import { registerModelProvider } from '../models';
+import { createOpenAIModelListFetcher } from '../utils/createModelListFetcher';
 
 export function createOpenAILikeHandler(prefix: string, config: OpenAILikeConfig): Handler {
   return async (params: HandlerParams): Promise<Result> => {
@@ -27,18 +28,9 @@ for (const [prefix, config] of Object.entries(OPENAI_LIKE_MAPPINGS)) {
   registerCompletionHandler(prefix, createOpenAILikeHandler(prefix, config));
 
   const provider = prefix.replace('/', '');
-  registerModelProvider(provider, async ({ apiKey } = {}) => {
-    const key = apiKey ?? process.env[config.apiKeyEnv];
-    if (!key) return [];
-    try {
-      const res = await fetch(`${config.baseUrl}/models`, {
-        headers: { Authorization: `Bearer ${key}` },
-      });
-      if (!res.ok) return [];
-      const { data } = await res.json() as { data?: { id: string }[] };
-      return (data ?? []).map((m) => ({ id: m.id, provider }));
-    } catch {
-      return [];
-    }
-  });
+  registerModelProvider(provider, createOpenAIModelListFetcher({
+    baseUrl: config.baseUrl,
+    apiKeyEnv: config.apiKeyEnv,
+    provider,
+  }));
 }

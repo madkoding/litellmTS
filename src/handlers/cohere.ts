@@ -11,22 +11,15 @@ import { registerModelProvider } from '../models';
 import { stripPrefix } from '../utils/stripPrefix';
 import { wrapApiError } from '../utils/wrapApiError';
 import { nowSec } from '../utils/nowSec';
+import { fetchWithTimeout } from '../utils/fetchWithTimeout';
+import { mergeSystem } from '../utils/mergeSystem';
 
 function toChatHistory(messages: Message[]): {
   message: string;
   chatHistory?: Cohere.Message[];
   preamble?: string;
 } {
-  let system: string | undefined;
-  const chatMessages: Message[] = [];
-
-  for (const msg of messages) {
-    if (msg.role === 'system') {
-      system = (system ? system + '\n' : '') + (msg.content ?? '');
-    } else {
-      chatMessages.push(msg);
-    }
-  }
+  const { system, messages: chatMessages } = mergeSystem(messages);
 
   let lastUserMessage = '';
   const chatHistory: Cohere.Message[] = [];
@@ -160,7 +153,7 @@ async function* toStreamingResponse(
 registerModelProvider('cohere', async ({ apiKey } = {}) => {
   const key = apiKey ?? process.env.COHERE_API_KEY;
   if (!key) return [];
-  const res = await fetch('https://api.cohere.com/v1/models', {
+  const res = await fetchWithTimeout('https://api.cohere.com/v1/models', {
     headers: { Authorization: `Bearer ${key}` },
   });
   if (!res.ok) return [];

@@ -5,8 +5,10 @@ import {
   ResultStreaming,
 } from '../types';
 import { combinePrompts } from '../utils/combinePrompts';
+import { wrapApiError } from '../utils/wrapApiError';
 
 import { iterateSSEStream } from '../utils/sse';
+import { fetchWithTimeout } from '../utils/fetchWithTimeout';
 import { stripPrefix } from '../utils/stripPrefix';
 import { nowSec } from '../utils/nowSec';
 
@@ -85,7 +87,7 @@ async function getAI21Response(
 ): Promise<Response> {
   const body: Record<string, unknown> = { prompt };
   if (stream) body.stream = true;
-  return fetch(`${baseUrl}/studio/v1/${model}/complete`, {
+  return fetchWithTimeout(`${baseUrl}/studio/v1/${model}/complete`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -114,7 +116,7 @@ export async function AI21Handler(
   const res = await getAI21Response(modelName, prompt, baseUrl, apiKey, params.stream ?? false);
 
   if (!res.ok) {
-    throw new Error(`Received an error with code ${res.status} from AI21 API.`);
+    throw wrapApiError('AI21', new Error(`Received an error with code ${res.status} from AI21 API.`));
   }
 
   if (params.stream) {

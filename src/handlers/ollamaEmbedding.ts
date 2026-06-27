@@ -1,27 +1,27 @@
 import { EmbeddingParams, EmbeddingResponse } from '../types';
 import { toEmbeddingUsage } from '../utils/toUsage';
 import { stripPrefix } from '../utils/stripPrefix';
+import { fetchWithTimeout } from '../utils/fetchWithTimeout';
 
 interface OllamaEmbeddingsResponseChunk {
   embedding: number[];
 }
 
-async function getOllamaResponse(
+async function getOllamaEmbedding(
   model: string,
   input: string,
   baseUrl: string,
-): Promise<Response> {
-  return fetch(`${baseUrl}/api/embeddings`, {
+): Promise<number[]> {
+  const response = await fetchWithTimeout(`${baseUrl}/api/embeddings`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model,
-      prompt: input,
-      stream: false,
-    }),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model, prompt: input, stream: false }),
   });
+  if (!response.ok) {
+    throw new Error(`Received an error with code ${response.status} from Ollama API.`);
+  }
+  const body = (await response.json()) as OllamaEmbeddingsResponseChunk;
+  return body.embedding;
 }
 
 export async function OllamaEmbeddingHandler(
@@ -29,23 +29,17 @@ export async function OllamaEmbeddingHandler(
 ): Promise<EmbeddingResponse> {
   const model = stripPrefix(params.model, 'ollama/');
   const baseUrl = params.baseUrl ?? 'http://127.0.0.1:11434';
-  const input =
-    typeof params.input === 'string'
-      ? params.input
-      : params.input.reduce((acc, curr) => acc + curr, '');
-  const response = await getOllamaResponse(model, input, baseUrl);
-
-  if (!response.ok) {
-    throw new Error(
-      `Received an error with code ${response.status} from Ollama API.`,
-    );
-  }
-  const body = (await response.json()) as OllamaEmbeddingsResponseChunk;
-
+  const inputs = typeof params.input === 'string' ? [params.input] : params.input;
+  const embeddings = await Promise.all(
+    inputs.map((input, index) =>
+      getOllamaEmbedding(model, input, baseUrl).then((embedding) => ({ embedding, index })),
+    ),
+  );
+  const allInput = inputs.join('');
   return {
-    data: [{ embedding: body.embedding, index: 0 }],
-    model: model,
-    usage: toEmbeddingUsage(input),
+    data: embeddings,
+    model,
+    usage: toEmbeddingUsage(allInput),
   };
 }
 

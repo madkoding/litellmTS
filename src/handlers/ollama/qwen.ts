@@ -24,15 +24,18 @@ async function* iterateQwenGenerate(
   const reader = response.body?.getReader();
   let done = false;
   let buffer = '';
+  let lineBuffer = '';
   let state: 'thinking' | 'content' = thinkingEnabled ? 'thinking' : 'content';
   let lastError = '';
+  const decoder = new TextDecoder();
 
   while (!done) {
     const next = await reader?.read();
     if (next?.value) {
-      const decoded = new TextDecoder().decode(next.value);
+      lineBuffer += decoder.decode(next.value, { stream: true });
       done = next.done;
-      const lines = decoded.split('\n');
+      const lines = lineBuffer.split('\n');
+      lineBuffer = lines.pop() ?? '';
       for (const line of lines) {
         const trimmed = line.trim();
         if (!trimmed) continue;
@@ -68,6 +71,28 @@ async function* iterateQwenGenerate(
     }
   }
 
+  const tail = lineBuffer.trim();
+  if (tail) {
+    try {
+      const parsed = JSON.parse(tail) as QwenGenerateChunk;
+      buffer += parsed.response;
+      if (state === 'thinking') {
+        const idx = buffer.indexOf('\n response\n\n');
+        if (idx !== -1) {
+          state = 'content';
+          const reasoning = buffer.slice(0, idx);
+          buffer = buffer.slice(idx + '\n response\n\n'.length);
+          if (reasoning.trim()) {
+            yield toStreamingChunkFromDelta('', model, prompt, undefined, reasoning);
+          }
+        }
+      }
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      lastError = `Failed to parse generate chunk: ${msg.slice(0, 100)} | raw: ${tail.slice(0, 200)}`;
+    }
+  }
+
   if (buffer) {
     yield toStreamingChunkFromDelta(buffer, model, prompt);
   }
@@ -90,19 +115,19 @@ export async function qwenCompletionPath(
     enableThinking: thinkingEnabled,
   });
 
-  const { response: res, endpoint } = await getQwenGenerateResponse(
+  const { response: res, endpoint } = await getQwenGenerateResponse({
     model,
     rendered,
-    params.baseUrl ?? '',
-    !!params.stream,
-    params.apiKey,
-    params.max_tokens,
-    params.temperature,
-    params.top_p,
-    params.repetition_penalty,
-    params.frequency_penalty,
-    params.top_k,
-  );
+    baseUrl: params.baseUrl ?? '',
+    stream: !!params.stream,
+    apiKey: params.apiKey,
+    maxTokens: params.max_tokens,
+    temperature: params.temperature,
+    topP: params.top_p,
+    repetitionPenalty: params.repetition_penalty,
+    frequencyPenalty: params.frequency_penalty,
+    topK: params.top_k,
+  });
 
   if (!res.ok) {
     let errorBody: string;

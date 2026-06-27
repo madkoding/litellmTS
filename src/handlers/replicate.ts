@@ -10,6 +10,7 @@ import { toUsage } from '../utils/toUsage';
 import { stripPrefix } from '../utils/stripPrefix';
 import { wrapApiError } from '../utils/wrapApiError';
 import { nowSec } from '../utils/nowSec';
+import { fetchWithTimeout } from '../utils/fetchWithTimeout';
 
 async function handleNonStreamingPrediction(
   prompt: string,
@@ -49,7 +50,8 @@ async function* handleStreamingPrediction(
 
   const source = new EventSource(prediction.urls.stream);
 
-  let results: string[] = [];
+  let accumulated = '';
+  let pending = '';
   let done = false;
 
   let resolve: (a: unknown) => void;
@@ -62,7 +64,7 @@ async function* handleStreamingPrediction(
   }, 30_000);
 
   source.addEventListener('output', (e: MessageEvent) => {
-    results.push(e.data as string);
+    pending += e.data as string;
     resolve({});
     promise = new Promise((r) => (resolve = r));
   });
@@ -71,18 +73,22 @@ async function* handleStreamingPrediction(
     done = true;
     clearTimeout(timeout);
     source.close();
+    resolve({});
   });
 
   while (!done) {
     await promise;
-    const combined = results.reduce((acc, curr) => acc + curr, '');
+    if (!pending) continue;
+    accumulated += pending;
+    const delta = pending;
+    pending = '';
     yield {
-    created: nowSec(),
-      usage: toUsage(prompt, combined),
+      created: nowSec(),
+      usage: toUsage(prompt, accumulated),
       choices: [
         {
           delta: {
-            content: combined,
+            content: delta,
             role: 'assistant',
           },
           index: 0,
@@ -90,7 +96,24 @@ async function* handleStreamingPrediction(
         },
       ],
     };
-    results = [];
+  }
+
+  if (pending) {
+    accumulated += pending;
+    yield {
+      created: nowSec(),
+      usage: toUsage(prompt, accumulated),
+      choices: [
+        {
+          delta: {
+            content: pending,
+            role: 'assistant',
+          },
+          index: 0,
+          finish_reason: 'stop',
+        },
+      ],
+    };
   }
 }
 
@@ -131,7 +154,7 @@ import { registerModelProvider } from '../models';
 registerModelProvider('replicate', async ({ apiKey } = {}) => {
   const key = apiKey ?? process.env.REPLICATE_API_KEY;
   if (!key) return [];
-  const res = await fetch('https://api.replicate.com/v1/models', {
+  const res = await fetchWithTimeout('https://api.replicate.com/v1/models', {
     headers: { Authorization: `Bearer ${key}` },
   });
   if (!res.ok) return [];

@@ -19,13 +19,19 @@ async function* iterateStream<C>(
   if (!reader) throw new Error('Response body is not readable');
   let done = false;
   let lastError = '';
+  let buffer = '';
+  const decoder = new TextDecoder();
 
   while (!done) {
     const next = await reader.read();
-    if (!next.value) { break; }
+    if (next.value) {
+      buffer += decoder.decode(next.value, { stream: true });
+    }
     done = next.done;
-    const decoded = new TextDecoder().decode(next.value);
-    for (const line of decoded.split('\n')) {
+    if (!next.value && !done) continue;
+    const lines = buffer.split('\n');
+    buffer = lines.pop() ?? '';
+    for (const line of lines) {
       const trimmed = line.trim();
       if (!trimmed) continue;
       if (strategy.sse) {
@@ -45,6 +51,26 @@ async function* iterateStream<C>(
           const msg = e instanceof Error ? e.message : String(e);
           lastError = `Failed to parse chunk: ${msg.slice(0, 100)} | raw: ${trimmed.slice(0, 200)}`;
         }
+      }
+    }
+  }
+
+  const tail = buffer.trim();
+  if (tail) {
+    if (strategy.sse) {
+      if (tail !== 'data: [DONE]' && tail.startsWith('data: ')) {
+        const payload = tail.slice(6);
+        try { yield* strategy.emit(strategy.parseLine(payload), ctx); }
+        catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : String(e);
+          lastError = `Failed to parse SSE chunk: ${msg.slice(0, 100)} | raw: ${payload.slice(0, 200)}`;
+        }
+      }
+    } else {
+      try { yield* strategy.emit(strategy.parseLine(tail), ctx); }
+      catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        lastError = `Failed to parse chunk: ${msg.slice(0, 100)} | raw: ${tail.slice(0, 200)}`;
       }
     }
   }

@@ -2,12 +2,14 @@ const mockReadFile = jest.fn();
 const mockWriteFile = jest.fn();
 const mockMkdir = jest.fn();
 const mockChmod = jest.fn();
+const mockRename = jest.fn();
 
 jest.mock('node:fs/promises', () => ({
   readFile: mockReadFile,
   writeFile: mockWriteFile,
   mkdir: mockMkdir,
   chmod: mockChmod,
+  rename: mockRename,
 }));
 
 import {
@@ -26,6 +28,8 @@ function enoent(): Error {
 describe('auth/store', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockRename.mockResolvedValue(undefined);
+    mockMkdir.mockResolvedValue(undefined);
   });
 
   describe('getProviderCredentials', () => {
@@ -61,7 +65,7 @@ describe('auth/store', () => {
         'utf-8',
       );
       const written = mockWriteFile.mock.calls[0][1];
-      expect(JSON.parse(decrypt(written))).toEqual({ 'test-provider': { key: 'val' } });
+      expect(JSON.parse(decrypt(written))).toEqual({ 'test-provider': { key: 'val' }, __version: 1 });
     });
 
     it('merges with existing store', async () => {
@@ -74,6 +78,7 @@ describe('auth/store', () => {
       expect(JSON.parse(decrypt(writeCall))).toEqual({
         existing: { x: 1 },
         'new-provider': { y: 2 },
+        __version: 1,
       });
     });
   });
@@ -119,7 +124,7 @@ describe('auth/store', () => {
         'utf-8',
       );
       const written = mockWriteFile.mock.calls[0][1];
-      expect(JSON.parse(decrypt(written))).toEqual({});
+      expect(JSON.parse(decrypt(written))).toEqual({ __version: 1 });
     });
   });
 });

@@ -12,14 +12,14 @@ describe('e2e', () => {
     it.each`
       model
       ${'openai/gpt-4o-mini'}
-      ${'anthropic/claude-3-haiku-20240307'}
-      ${'cohere/command-nightly'}
-      ${'ai21/j2-light'}
-      ${'ollama/llama2'}
+      ${'anthropic/claude-3-5-haiku-20241022'}
+      ${'cohere/command-r-plus'}
+      ${'ai21/jamba-1.5-mini'}
+      ${'ollama/llama3.1:8b'}
       ${'gemini/gemini-2.0-flash'}
-      ${'mistral/mistral-tiny'}
+      ${'mistral/mistral-small-latest'}
       ${'deepinfra/mistralai/Mistral-7B-Instruct-v0.1'}
-      ${'replicate/meta/llama-2-70b-chat:02e509c789964a7ea8736978a43525956ef40397be9033abf9fd2badfe68c9e3'}
+      ${'replicate/meta/llama-3-70b-instruct:83e80b65e1c4ec3e36c89e0bbeb21e029c1573b9b554a3671fb4bf2cd5f7f5d3'}
       ${'copilot/gpt-4o'}
       ${'groq/llama3-70b-8192'}
       ${'together/meta-llama/Llama-3-70b-chat-hf'}
@@ -39,10 +39,10 @@ describe('e2e', () => {
     it.each`
       model
       ${'openai/gpt-4o-mini'}
-      ${'anthropic/claude-3-haiku-20240307'}
-      ${'cohere/command-nightly'}
+      ${'anthropic/claude-3-5-haiku-20241022'}
+      ${'cohere/command-r-plus'}
       ${'gemini/gemini-2.0-flash'}
-      ${'mistral/mistral-tiny'}
+      ${'mistral/mistral-small-latest'}
       ${'deepinfra/mistralai/Mistral-7B-Instruct-v0.1'}
       ${'groq/llama3-70b-8192'}
       ${'together/meta-llama/Llama-3-70b-chat-hf'}
@@ -77,7 +77,7 @@ describe('e2e', () => {
     it.each`
       model
       ${'openai/text-embedding-ada-002'}
-      ${'ollama/llama2'}
+      ${'ollama/llama3.1:8b'}
       ${'mistral/mistral-embed'}
       ${'gemini/text-embedding-004'}
     `(

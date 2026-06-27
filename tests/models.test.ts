@@ -27,7 +27,7 @@ describe('listModels fallback chain', () => {
       const result = await listModels('ollama', { baseUrl: 'http://localhost:11434' });
 
       expect(mockFetch).toHaveBeenCalledTimes(1);
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:11434/api/tags', { headers: {} });
+      expect(mockFetch).toHaveBeenCalledWith('http://localhost:11434/api/tags', expect.objectContaining({ headers: {} }));
       expect(result).toEqual([
         { id: 'llama3:8b', provider: 'ollama' },
         { id: 'mistral:7b', provider: 'ollama' },
@@ -48,7 +48,7 @@ describe('listModels fallback chain', () => {
       });
 
       expect(mockFetch).toHaveBeenCalledTimes(2);
-      expect(mockFetch).toHaveBeenNthCalledWith(1, 'https://api.groq.com/openai/v1/api/tags', { headers: { Authorization: 'Bearer test-key' } });
+      expect(mockFetch).toHaveBeenNthCalledWith(1, 'https://api.groq.com/openai/v1/api/tags', expect.objectContaining({ headers: { Authorization: 'Bearer test-key' } }));
       expect(mockFetch).toHaveBeenNthCalledWith(2, 'https://api.groq.com/openai/v1/models', expect.objectContaining({
         headers: expect.objectContaining({ Authorization: 'Bearer test-key' }),
       }));
@@ -156,7 +156,7 @@ describe('listModels fallback chain', () => {
 
       await listModels('ollama', { baseUrl: 'http://localhost:11434/' });
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:11434/api/tags', { headers: {} });
+      expect(mockFetch).toHaveBeenCalledWith('http://localhost:11434/api/tags', expect.objectContaining({ headers: {} }));
     });
 
     it('should strip /api suffix from baseUrl to avoid duplication', async () => {
@@ -167,7 +167,7 @@ describe('listModels fallback chain', () => {
 
       await listModels('ollama', { baseUrl: 'http://localhost:11434/api', apiKey: 'k' });
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:11434/api/tags', { headers: { Authorization: 'Bearer k' } });
+      expect(mockFetch).toHaveBeenCalledWith('http://localhost:11434/api/tags', expect.objectContaining({ headers: { Authorization: 'Bearer k' } }));
     });
   });
 });

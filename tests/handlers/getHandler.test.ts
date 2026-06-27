@@ -57,4 +57,12 @@ describe('getHandler', () => {
     const handler = getHandler('unknown', MODEL_HANDLER_MAPPINGS);
     expect(handler).toBeNull();
   });
+
+  it('routes to the more specific prefix when prefixes overlap (A3)', () => {
+    const a: unknown = 'A';
+    const ab: unknown = 'AB';
+    const mapping = { 'foo/': a, 'foo-bar/': ab };
+    expect(getHandler('foo-bar/x', mapping)).toBe(ab);
+    expect(getHandler('foo/x', mapping)).toBe(a);
+  });
 });

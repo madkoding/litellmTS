@@ -10,16 +10,16 @@ import type {
 } from '../types';
 import { nowSec } from './nowSec';
 import { safeParseArgs } from './safeParseArgs';
+import { mergeSystem } from './mergeSystem';
 
 
 export function toGeminiContent(
   messages: Message[],
 ): { role: string; parts: Part[] }[] {
+  const { messages: msgs } = mergeSystem(messages);
   const result: { role: string; parts: Part[] }[] = [];
 
-  for (const msg of messages) {
-    if (msg.role === 'system') continue;
-
+  for (const msg of msgs) {
     if (msg.role === 'user') {
       const parts: Part[] = [];
       if (msg.content) {

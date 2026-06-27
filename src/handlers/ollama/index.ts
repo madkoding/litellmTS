@@ -4,6 +4,7 @@ import { getOllamaResponse } from './request';
 import { iterateResponse } from './stream';
 import { toResponse } from './mappers';
 import { OpenAIChatChunk, OllamaResponseChunk } from './types';
+import { combinePrompts } from '../../utils/combinePrompts';
 
 export async function OllamaHandler(
   params: HandlerParams,
@@ -36,15 +37,23 @@ export async function OllamaHandler(
     }
     return msg;
   });
-  const prompt = params.messages
-    .map((m) => `${m.role === 'assistant' ? 'Assistant' : m.role === 'system' ? 'System' : 'Human'}: ${m.content ?? ''}`)
-    .join('\n\n');
+  const prompt = combinePrompts(params.messages);
 
-  const { response: res, useOpenAIEndpoint, endpoint, hasApiKey, model: actualModel } = await getOllamaResponse(
-    model, messages as { role: string; content: string; tool_calls?: { id: string; type: string; function: { name: string; arguments: string } }[] }[], params.baseUrl ?? '', !!params.stream, params.apiKey,
-    params.max_tokens, params.temperature, params.top_p, params.tools,
-    params.thinking !== undefined ? params.thinking.type === 'enabled' : undefined, params.repetition_penalty, params.frequency_penalty, params.top_k,
-  );
+  const { response: res, useOpenAIEndpoint, endpoint, hasApiKey, model: actualModel } = await getOllamaResponse({
+    model,
+    messages: messages as { role: string; content: string; tool_calls?: { id: string; type: string; function: { name: string; arguments: string } }[] }[],
+    baseUrl: params.baseUrl ?? '',
+    stream: !!params.stream,
+    apiKey: params.apiKey,
+    maxTokens: params.max_tokens,
+    temperature: params.temperature,
+    topP: params.top_p,
+    tools: params.tools,
+    think: params.thinking !== undefined ? params.thinking.type === 'enabled' : undefined,
+    repetitionPenalty: params.repetition_penalty,
+    frequencyPenalty: params.frequency_penalty,
+    topK: params.top_k,
+  });
 
   if (!res.ok) {
     let errorBody: string;

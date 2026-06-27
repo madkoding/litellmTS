@@ -10,4 +10,17 @@ module.exports = {
       tsconfig: 'tsconfig.json',
     }],
   },
+  collectCoverageFrom: [
+    'src/**/*.ts',
+    '!src/bin/**',
+    '!src/mappings/**',
+  ],
+  coverageThreshold: {
+    global: {
+      branches: 55,
+      functions: 70,
+      lines: 70,
+      statements: 70,
+    },
+  },
 };

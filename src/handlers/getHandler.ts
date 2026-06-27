@@ -12,7 +12,7 @@ export function getHandler<T>(
   model: string,
   mapping: Record<string, T>,
 ): T | null {
-  const patterns = Object.keys(mapping);
+  const patterns = Object.keys(mapping).sort((a, b) => b.length - a.length);
   const handlerKey = patterns.find((pattern) => model.startsWith(pattern));
   if (!handlerKey) {
     return null;

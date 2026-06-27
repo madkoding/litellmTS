@@ -9,20 +9,16 @@ import type {
 } from '../types';
 import { nowSec } from './nowSec';
 import { safeParseArgs } from './safeParseArgs';
+import { mergeSystem } from './mergeSystem';
 
 export function toAnthropicMessages(input: Message[]): {
   system: string | undefined;
   messages: Anthropic.MessageParam[];
 } {
-  let system: string | undefined;
+  const { system, messages: msgs } = mergeSystem(input);
   const messages: Anthropic.MessageParam[] = [];
 
-  for (const msg of input) {
-    if (msg.role === 'system') {
-      system = (system ? system + '\n' : '') + (msg.content ?? '');
-      continue;
-    }
-
+  for (const msg of msgs) {
     if (msg.role === 'user') {
       messages.push({
         role: 'user',

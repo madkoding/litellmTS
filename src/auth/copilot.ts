@@ -53,7 +53,7 @@ async function requestDeviceCode(): Promise<DeviceCodeResponse> {
   });
 
   if (!res.ok) {
-    throw new Error(`Error al solicitar device code: ${res.status}`);
+    throw new Error(`Failed to request device code: ${res.status}`);
   }
 
   return res.json() as Promise<DeviceCodeResponse>;
@@ -87,7 +87,7 @@ async function pollAccessToken(
     });
 
     if (!res.ok) {
-      throw new Error(`Error en polling: ${res.status}`);
+      throw new Error(`Polling error: ${res.status}`);
     }
 
     const data = (await res.json()) as AccessTokenResponse;
@@ -110,12 +110,12 @@ async function pollAccessToken(
       data.error === 'access_denied'
     ) {
       throw new Error(
-        data.error_description ?? `Autenticación cancelada: ${data.error}`,
+        data.error_description ?? `Authentication cancelled: ${data.error}`,
       );
     }
   }
 
-  throw new Error('Tiempo de espera agotado para la autenticación');
+  throw new Error('Authentication timed out');
 }
 
 /**

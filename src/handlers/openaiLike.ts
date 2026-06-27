@@ -35,8 +35,8 @@ for (const [prefix, config] of Object.entries(OPENAI_LIKE_MAPPINGS)) {
         headers: { Authorization: `Bearer ${key}` },
       });
       if (!res.ok) return [];
-      const { data } = await res.json();
-      return (data ?? []).map((m: any) => ({ id: m.id, provider }));
+      const { data } = await res.json() as { data?: { id: string }[] };
+      return (data ?? []).map((m) => ({ id: m.id, provider }));
     } catch {
       return [];
     }

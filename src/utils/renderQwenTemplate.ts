@@ -1,5 +1,6 @@
 import type { Message } from '../types';
 import type { HandlerParams } from '../types';
+import { safeParseArgs } from './safeParseArgs';
 
 export interface RenderQwenOpts {
   messages: Message[];
@@ -27,7 +28,7 @@ export function renderQwenTemplate(opts: RenderQwenOpts): string {
   }
 
   let sysContent = '';
-  if (sysMsg && sysMsg.content) {
+  if (sysMsg?.content) {
     sysContent = sysMsg.content.trim();
     if (sysContent.includes('<|think_off|>')) {
       thinking = false;
@@ -41,7 +42,7 @@ export function renderQwenTemplate(opts: RenderQwenOpts): string {
   /* ── tools block ── */
   if (hasTools) {
     let toolBlock = '<|im_start|>system\n# Tools\n\nYou have access to the following functions:\n\n<tools>';
-    for (const tool of tools!) {
+    for (const tool of tools) {
       toolBlock += '\n' + JSON.stringify(tool);
     }
     toolBlock += '\n</tools>\n\n';
@@ -89,7 +90,7 @@ Reminder:
   let consecutiveFailures = 0;
   for (let i = 0; i < msgs.length; i++) {
     const msg = msgs[i];
-    let content = (msg.content || '').trim();
+    let content = (msg.content ?? '').trim();
 
     if (content.includes('<|think_off|>')) {
       thinking = false;
@@ -115,10 +116,9 @@ Reminder:
           } else {
             as += '<tool_call>\n<function=' + fn.name + '>\n';
           }
-          let args: Record<string, unknown> = {};
-          try { args = JSON.parse(fn.arguments); } catch { args = {}; }
+          const args = safeParseArgs(fn.arguments);
           for (const [k, v] of Object.entries(args)) {
-            const sv = typeof v === 'object' ? JSON.stringify(v) : String(v);
+            const sv = typeof v === 'object' ? JSON.stringify(v) : (v as string | number | boolean).toString();
             as += '<parameter=' + k + '>\n' + sv + '\n</parameter>\n';
           }
           as += '</function>\n</tool_call>\n';
@@ -157,7 +157,7 @@ Reminder:
 
       parts.push('\n</tool_response>');
       const next = msgs[i + 1];
-      if (!next || next.role !== 'tool') {
+      if (next?.role !== 'tool') {
         parts.push('<|im_end|>\n');
       }
     } else {

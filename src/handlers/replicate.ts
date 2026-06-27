@@ -7,6 +7,9 @@ import {
 } from '../types';
 import { combinePrompts } from '../utils/combinePrompts';
 import { toUsage } from '../utils/toUsage';
+import { stripPrefix } from '../utils/stripPrefix';
+import { wrapApiError } from '../utils/wrapApiError';
+import { nowSec } from '../utils/nowSec';
 
 async function handleNonStreamingPrediction(
   prompt: string,
@@ -22,7 +25,7 @@ async function handleNonStreamingPrediction(
   return {
     model: modelName,
     usage: toUsage(prompt, output),
-    created: Math.floor(Date.now() / 1000),
+      created: nowSec(),
     choices: [
       {
         message: {
@@ -52,6 +55,12 @@ async function* handleStreamingPrediction(
   let resolve: (a: unknown) => void;
   let promise = new Promise((r) => (resolve = r));
 
+  const timeout = setTimeout(() => {
+    source.close();
+    done = true;
+    resolve({});
+  }, 30_000);
+
   source.addEventListener('output', (e: MessageEvent) => {
     results.push(e.data as string);
     resolve({});
@@ -60,6 +69,7 @@ async function* handleStreamingPrediction(
 
   source.addEventListener('done', () => {
     done = true;
+    clearTimeout(timeout);
     source.close();
   });
 
@@ -67,7 +77,7 @@ async function* handleStreamingPrediction(
     await promise;
     const combined = results.reduce((acc, curr) => acc + curr, '');
     yield {
-      created: Math.floor(Date.now() / 1000),
+    created: nowSec(),
       usage: toUsage(prompt, combined),
       choices: [
         {
@@ -91,9 +101,7 @@ export async function ReplicateHandler(
   const replicate = new Replicate({
     auth: apiKey,
   });
-  const modelName = params.model.startsWith('replicate/')
-    ? params.model.slice(10)
-    : params.model;
+  const modelName = stripPrefix(params.model, 'replicate/');
   const version = modelName.split(':')[1];
   if (!version) {
     throw new Error(`Invalid Replicate model format: ${params.model}. Expected format: replicate/<owner>/<name>:<version>`);
@@ -109,7 +117,7 @@ export async function ReplicateHandler(
       },
     });
   } catch (err) {
-    throw new Error(`Replicate API error: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
+    throw wrapApiError('Replicate', err);
   }
 
   if (params.stream) {
@@ -127,8 +135,8 @@ registerModelProvider('replicate', async ({ apiKey } = {}) => {
     headers: { Authorization: `Bearer ${key}` },
   });
   if (!res.ok) return [];
-  const { results } = await res.json();
-  return (results ?? []).map((m: any) => ({ id: `${m.owner}/${m.name}`, provider: 'replicate' }));
+  const { results } = await res.json() as { results?: { owner: string; name: string }[] };
+  return (results ?? []).map((m) => ({ id: `${m.owner}/${m.name}`, provider: 'replicate' }));
 });
 
 import { registerCompletionHandler } from '../registry';

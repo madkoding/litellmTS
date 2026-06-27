@@ -8,6 +8,8 @@ import {
 import { getValidToken } from '../auth/refresh';
 import { iterateSSEStream } from '../utils/sse';
 import { COPILOT_API, USER_AGENT, EDITOR_VERSION, EDITOR_PLUGIN_VERSION, COPILOT_INTEGRATION_ID } from '../auth/constants';
+import { stripPrefix } from '../utils/stripPrefix';
+import { nowSec } from '../utils/nowSec';
 
 interface StreamChoice {
   delta?: { content?: string | null; role?: string | null };
@@ -75,14 +77,12 @@ export async function CopilotHandler(
 
   if (!apiKey) {
     throw new Error(
-      'No se encontró token de Copilot. Ejecuta: npx litellm login copilot',
+      'No Copilot token found. Run: npx litellm login copilot',
     );
   }
 
   const baseUrl = params.baseUrl ?? COPILOT_API;
-  const model = params.model.startsWith('copilot/')
-    ? params.model.slice(8)
-    : params.model;
+  const model = stripPrefix(params.model, 'copilot/');
 
   const body: Record<string, unknown> = {
     model,
@@ -98,7 +98,6 @@ export async function CopilotHandler(
   if (params.max_tokens != null) body.max_tokens = params.max_tokens;
   if (params.stop != null) body.stop = params.stop;
   if (params.presence_penalty != null) body.presence_penalty = params.presence_penalty;
-  if (params.n != null) body.n = params.n;
 
   const response = await fetch(`${baseUrl}/chat/completions`, {
     method: 'POST',
@@ -112,7 +111,7 @@ export async function CopilotHandler(
   if (!response.ok) {
     const text = await response.text();
     throw new Error(
-      `Error de Copilot API: ${response.status} ${response.statusText}\n${text}`,
+      `Copilot API error: ${response.status} ${response.statusText}\n${text}`,
     );
   }
 
@@ -134,7 +133,7 @@ export async function CopilotHandler(
   );
 
   const result: ResultNotStreaming = {
-    created: (data.created as number) ?? Math.floor(Date.now() / 1000),
+    created: (data.created as number) ?? nowSec(),
     model: data.model as string | undefined,
     usage: toUsage(data),
     choices,
@@ -145,7 +144,7 @@ export async function CopilotHandler(
 
 import { registerModelProvider } from '../models';
 
-registerModelProvider('copilot', async () => []);
+registerModelProvider('copilot', () => Promise.resolve([]));
 
 import { registerCompletionHandler } from '../registry';
 registerCompletionHandler('copilot/', CopilotHandler);

@@ -1,5 +1,6 @@
 import { EmbeddingParams, EmbeddingResponse } from '../types';
 import { toEmbeddingUsage } from '../utils/toUsage';
+import { stripPrefix } from '../utils/stripPrefix';
 
 interface OllamaEmbeddingsResponseChunk {
   embedding: number[];
@@ -12,14 +13,13 @@ async function getOllamaResponse(
 ): Promise<Response> {
   return fetch(`${baseUrl}/api/embeddings`, {
     method: 'POST',
-
+    headers: {
+      'Content-Type': 'application/json',
+    },
     body: JSON.stringify({
       model,
       prompt: input,
       stream: false,
-      headers: {
-        'Content-Type': 'application/json',
-      },
     }),
   });
 }
@@ -27,9 +27,7 @@ async function getOllamaResponse(
 export async function OllamaEmbeddingHandler(
   params: EmbeddingParams,
 ): Promise<EmbeddingResponse> {
-  const model = params.model.startsWith('ollama/')
-    ? params.model.slice(7)
-    : params.model;
+  const model = stripPrefix(params.model, 'ollama/');
   const baseUrl = params.baseUrl ?? 'http://127.0.0.1:11434';
   const input =
     typeof params.input === 'string'

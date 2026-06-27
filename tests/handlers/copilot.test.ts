@@ -29,7 +29,7 @@ describe('CopilotHandler', () => {
 
     await expect(
       CopilotHandler({ model: 'copilot/gpt-4', messages: [{ role: 'user', content: 'hi' }] }),
-    ).rejects.toThrow('No se encontró token de Copilot');
+    ).rejects.toThrow('No Copilot token found');
   });
 
   describe('non-streaming', () => {
@@ -87,6 +87,6 @@ describe('CopilotHandler', () => {
 
     await expect(
       CopilotHandler({ model: 'gpt-4', messages: [] }),
-    ).rejects.toThrow('Error de Copilot API: 401');
+    ).rejects.toThrow('Copilot API error: 401');
   });
 });

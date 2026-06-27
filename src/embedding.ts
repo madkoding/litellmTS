@@ -1,7 +1,11 @@
 import { getHandler } from './handlers/getHandler';
 import { EmbeddingParams, EmbeddingResponse } from './types';
 import { embeddingHandlers } from './registry';
-import './handlers';
+
+import './handlers/openaiEmbedding';
+import './handlers/ollamaEmbedding';
+import './handlers/geminiEmbedding';
+import './handlers/openaiLikeEmbedding';
 
 const EMBEDDING_MODEL_HANDLER_MAPPINGS = embeddingHandlers;
 

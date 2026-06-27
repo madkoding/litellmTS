@@ -1,11 +1,13 @@
 const mockReadFile = jest.fn();
 const mockWriteFile = jest.fn();
 const mockMkdir = jest.fn();
+const mockChmod = jest.fn();
 
 jest.mock('node:fs/promises', () => ({
   readFile: mockReadFile,
   writeFile: mockWriteFile,
   mkdir: mockMkdir,
+  chmod: mockChmod,
 }));
 
 import {

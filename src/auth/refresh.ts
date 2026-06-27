@@ -22,7 +22,7 @@ export async function exchangeCopilotToken(
 
   if (!res.ok) {
     throw new Error(
-      `Error al refrescar token de Copilot: ${res.status} ${res.statusText}`,
+      `Failed to refresh Copilot token: ${res.status} ${res.statusText}`,
     );
   }
 
@@ -33,7 +33,7 @@ export async function exchangeCopilotToken(
   };
 
   if (data.error) {
-    throw new Error(`Error al refrescar token: ${data.error}`);
+    throw new Error(`Failed to refresh token: ${data.error}`);
   }
 
   return { token: data.token, expires_at: data.expires_at };
@@ -55,8 +55,8 @@ export async function getValidToken(): Promise<string | null> {
         expiresAt: newToken.expires_at * 1000,
       });
       return newToken.token;
-    } catch {
-      return null;
+    } catch (err) {
+      throw new Error(`Failed to refresh Copilot token: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
     }
   }
 

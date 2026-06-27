@@ -21,11 +21,11 @@ export async function loginAnthropic(): Promise<void> {
 
   const trimmed = apiKey.trim();
   if (!trimmed) {
-    throw new Error('No se ingresó ninguna key');
+    throw new Error('No API key was entered');
   }
 
   if (!trimmed.startsWith('sk-ant-')) {
-    console.warn('⚠️  La key no comienza con "sk-ant-". Asegúrate de haber copiado la key correcta.');
+    console.warn('⚠️  The key does not start with "sk-ant-". Make sure you copied the correct key.');
   }
 
   // Validate with a lightweight API call
@@ -47,7 +47,7 @@ export async function loginAnthropic(): Promise<void> {
   if (!res.ok) {
     const text = await res.text();
     throw new Error(
-      `Key inválida. Respuesta de Anthropic: ${res.status} ${res.statusText}\n${text}`,
+      `Invalid key. Anthropic response: ${res.status} ${res.statusText}\n${text}`,
     );
   }
 

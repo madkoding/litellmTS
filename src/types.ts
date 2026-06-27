@@ -92,7 +92,6 @@ export interface HandlerParamsBase {
   frequency_penalty?: number | null;
   repetition_penalty?: number | null;
   top_k?: number | null;
-  n?: number | null;
   max_tokens?: number | null;
   apiKey?: string;
   functions?: {

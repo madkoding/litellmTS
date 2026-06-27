@@ -8,6 +8,9 @@ import {
 } from '../types';
 
 import { registerModelProvider } from '../models';
+import { stripPrefix } from '../utils/stripPrefix';
+import { wrapApiError } from '../utils/wrapApiError';
+import { nowSec } from '../utils/nowSec';
 
 function toChatHistory(messages: Message[]): {
   message: string;
@@ -59,9 +62,7 @@ export async function CohereHandler(
   const apiKey = params.apiKey ?? process.env.COHERE_API_KEY;
   if (!apiKey) throw new Error('Cohere requires an API key. Set COHERE_API_KEY environment variable or pass apiKey in params.');
 
-  const modelName = params.model.startsWith('cohere/')
-    ? params.model.slice(7)
-    : params.model;
+  const modelName = stripPrefix(params.model, 'cohere/');
 
   const cohere = new CohereClient({ token: apiKey });
   const { message, chatHistory, preamble } = toChatHistory(params.messages);
@@ -87,7 +88,7 @@ export async function CohereHandler(
 
     return {
       model: modelName,
-      created: Math.floor(Date.now() / 1000),
+      created: nowSec(),
       usage: meta?.tokens
         ? {
             prompt_tokens: meta.tokens.inputTokens ?? 0,
@@ -107,7 +108,7 @@ export async function CohereHandler(
       ],
     };
   } catch (err) {
-    throw new Error(`Cohere API error: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
+    throw wrapApiError('Cohere', err);
   }
 }
 
@@ -131,7 +132,7 @@ async function* toStreamingResponse(
     if (event.eventType === 'text-generation') {
       yield {
         model,
-        created: Math.floor(Date.now() / 1000),
+        created: nowSec(),
         choices: [
           {
             delta: { content: event.text, role: 'assistant' },
@@ -143,7 +144,7 @@ async function* toStreamingResponse(
     } else if (event.eventType === 'stream-end') {
       yield {
         model,
-        created: Math.floor(Date.now() / 1000),
+        created: nowSec(),
         choices: [
           {
             delta: { content: '', role: 'assistant' },
@@ -163,8 +164,8 @@ registerModelProvider('cohere', async ({ apiKey } = {}) => {
     headers: { Authorization: `Bearer ${key}` },
   });
   if (!res.ok) return [];
-  const json = await res.json();
-  return (json.models ?? []).map((m: any) => ({ id: m.id, provider: 'cohere' }));
+  const json = await res.json() as { models?: { id: string }[] };
+  return (json.models ?? []).map((m) => ({ id: m.id, provider: 'cohere' }));
 });
 
 import { registerCompletionHandler } from '../registry';

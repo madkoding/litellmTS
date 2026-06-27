@@ -17,7 +17,7 @@ export function parseQwenToolCalls(content: string): ParsedQwenToolCall[] {
     while ((pmatch = paramRe.exec(body)) !== null) {
       const key = pmatch[1];
       let val: unknown = pmatch[2].trim();
-      try { val = JSON.parse(val as string); } catch {}
+      try { val = JSON.parse(val as string); } catch { /* val stays as raw string */ }
       args[key] = val;
     }
     results.push({

@@ -63,13 +63,16 @@ await completion({ model: 'deepseek/deepseek-chat', ... });
 
 - **Unified API** — same `completion()` / `embedding()` for every provider
 - **Streaming** — all providers support `stream: true`
+- **Tool calling** — native function/tool calling support across OpenAI, Anthropic, Gemini, Cohere, Ollama
+- **Extended thinking** — Anthropic `thinking` and Ollama Qwen `thinking` support
 - **Model listing** — `listModels('openai')` fetches available models from each provider's API
 - **Provider discovery** — `listProviders()` returns all configured providers
-- **TypeScript first** — full type safety with auto-completion
+- **TypeScript first** — full type safety with auto-completion, zero `any` in public API
 - **45+ providers** — from OpenAI to niche OpenAI-compatible APIs
 - **No SDK sprawl** — one dependency replaces 10+ vendor SDKs
 - **CLI auth** — built-in OAuth device flow for GitHub Copilot & API key setup for Anthropic
-- **Encrypted auth store** — `~/.litellm/auth.json` protected with AES-256-GCM (key derived from machine + user)
+- **Encrypted auth store** — `~/.litellm/auth.json` protected with AES-256-GCM (key derived from hostname + homedir), `chmod 600` file permissions
+- **Zero lint errors** — 100% ESLint clean across the entire codebase
 
 ## Usage
 
@@ -141,6 +144,43 @@ const groqModels = await listModels('groq', { apiKey: 'gsk_...' });
 clearModelCache();
 ```
 
+### Tool Calling
+
+```ts
+const response = await completion({
+  model: 'openai/gpt-4o-mini',
+  messages: [{ role: 'user', content: 'What is the weather in Tokyo?' }],
+  tools: [{
+    type: 'function',
+    function: {
+      name: 'get_weather',
+      description: 'Get weather for a city',
+      parameters: {
+        type: 'object',
+        properties: { city: { type: 'string' } },
+        required: ['city'],
+      },
+    },
+  }],
+});
+
+// The model may return tool_calls in the response
+const toolCalls = response.choices[0].message.tool_calls;
+```
+
+### Extended Thinking (Anthropic)
+
+```ts
+const response = await completion({
+  model: 'anthropic/claude-sonnet-4-20250514',
+  messages: [{ role: 'user', content: 'Solve this step by step...' }],
+  thinking: { type: 'enabled', budget_tokens: 5000 },
+});
+
+// Response includes reasoning in the message
+console.log(response.choices[0].message.reasoning);
+```
+
 ### API Keys
 
 Keys are read from environment variables by default:
@@ -176,19 +216,17 @@ npx litellm login anthropic
 ### Dedicated Handlers
 
 | Provider | Model prefix | Completion | Streaming | Embedding | API Key Env |
-|---|---|---|---|---|---|---|
+|---|---|---|---|---|---|
 | OpenAI | `openai/` | ✅ | ✅ | ✅ | `OPENAI_API_KEY` |
 | Anthropic | `anthropic/` | ✅ | ✅ | ❌ | `ANTHROPIC_API_KEY` |
 | Google Gemini | `gemini/` | ✅ | ✅ | ✅ | `GEMINI_API_KEY` |
 | GitHub Copilot | `copilot/` | ✅ | ✅ | ❌ | (OAuth) |
-| Mistral | `mistral/` | ✅ | ✅ | ✅ | `MISTRAL_API_KEY` |
 | Cohere | `cohere/` | ✅ | ✅ | ❌ | `COHERE_API_KEY` |
-| DeepInfra | `deepinfra/` | ✅ | ✅ | ❌ | `DEEPINFRA_API_KEY` |
 | Replicate | `replicate/` | ✅ | ✅ | ❌ | `REPLICATE_API_KEY` |
 | AI21 Labs | `ai21/` | ✅ | ✅ | ❌ | `AI21_API_KEY` |
-| Ollama (local) | `ollama/` | ✅ | ✅ | ✅ | — |
+| Ollama (local) | `ollama/` `ollama_local/` | ✅ | ✅ | ✅ | `OLLAMA_API_KEY` |
 
-### OpenAI-Compatible (38 providers)
+### OpenAI-Compatible (37 providers)
 
 | Provider | Prefix | API Key Env |
 |---|---|---|
@@ -228,6 +266,8 @@ npx litellm login anthropic
 | Baseten | `baseten/` | `BASETEN_API_KEY` |
 | PublicAI | `publicai/` | `PUBLICAI_API_KEY` |
 | Venice AI | `venice/` | `VENICE_API_KEY` |
+| Mistral | `mistral/` | `MISTRAL_API_KEY` |
+| DeepInfra | `deepinfra/` | `DEEPINFRA_API_KEY` |
 
 ## Architecture
 
@@ -237,18 +277,29 @@ npx litellm login anthropic
 │  embedding()  │     │  (prefix      │     │  AnthropicHandler│
 │  listModels() │     │   matching)   │     │  GeminiHandler   │
 │  listProviders│     │              │     │  OpenAILikeHandler│
-└──────────────┘     └──────────────┘     └─────────────────┘
-                           │
-                    ┌──────┴──────┐       ┌──────────────────┐
-                    │  Registry   │       │  Model Registry  │
-                    │  openai/ →  │       │  (in-memory      │
-                    │  anthropic/ │       │   cache + TTL)   │
-                    │  groq/ → .. │       │                  │
-                    └─────────────┘       │  listModels()    │
-                                          │  listProviders() │
-                                          │  clearModelCache()│
-                                          └──────────────────┘
+└──────────────┘     └──────────────┘     │  OllamaHandler    │
+                            │              │  CohereHandler    │
+                     ┌──────┴──────┐      │  ...              │
+                     │  Registry   │      └─────────────────┘
+                     │  openai/ →  │
+                     │  anthropic/ │       ┌──────────────────┐
+                     │  groq/ → .. │       │  Model Registry  │
+                     └─────────────┘       │  (in-memory      │
+                                           │   cache + TTL)   │
+                                           │                  │
+                                           │  listModels()    │
+                                           │  listProviders() │
+                                           │  clearModelCache()│
+                                           └──────────────────┘
 ```
+
+Ollama is split into focused modules under `src/handlers/ollama/`:
+`types`, `mappers`, `url`, `request`, `qwen`, `stream`, `models`, `register`, `index`.
+Streaming uses a unified `iterateStream<C>` iterator with a strategy pattern (Qwen, native Ollama, OpenAI-compatible).
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, conventions, and PR guidelines.
 
 ## Development
 

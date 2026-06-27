@@ -24,6 +24,10 @@ interface AccessTokenResponse {
 }
 
 function openBrowser(url: string): void {
+  let parsed: URL;
+  try { parsed = new URL(url); }
+  catch { return; }
+  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return;
   const platform = process.platform;
   try {
     if (platform === 'darwin') {
@@ -59,7 +63,7 @@ async function requestDeviceCode(): Promise<DeviceCodeResponse> {
   return res.json() as Promise<DeviceCodeResponse>;
 }
 
-async function pollAccessToken(
+export async function pollAccessToken(
   deviceCode: string,
   interval: number,
 ): Promise<string> {
@@ -129,24 +133,24 @@ async function pollAccessToken(
 export async function login(
   deployment = 'github.com',
 ): Promise<void> {
-  console.log('\n🔐 Iniciando sesión en GitHub Copilot...\n');
+  console.log('\n🔐 Logging in to GitHub Copilot...\n');
 
   const deviceCode = await requestDeviceCode();
 
-  console.log(`✏️  Código de verificación: ${deviceCode.user_code}`);
-  console.log(`🌐 Abriendo ${deviceCode.verification_uri} en tu navegador...\n`);
+  console.log(`✏️  Verification code: ${deviceCode.user_code}`);
+  console.log(`🌐 Opening ${deviceCode.verification_uri} in your browser...\n`);
 
   openBrowser(deviceCode.verification_uri);
 
-  console.log('⏳ Esperando autorización...');
+  console.log('⏳ Waiting for authorization...');
 
   const githubToken = await pollAccessToken(
     deviceCode.device_code,
     deviceCode.interval,
   );
 
-  console.log('✅ Autorización de GitHub exitosa');
-  console.log('🔄 Obteniendo token de Copilot...');
+  console.log('✅ GitHub authorization successful');
+  console.log('🔄 Fetching Copilot token...');
 
   const copilotToken = await exchangeCopilotToken(githubToken);
 
@@ -157,5 +161,5 @@ export async function login(
     enterpriseUrl: deployment !== 'github.com' ? deployment : undefined,
   });
 
-  console.log('✅ Autenticación con GitHub Copilot completada exitosamente');
+  console.log('✅ GitHub Copilot authentication completed successfully');
 }

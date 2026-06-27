@@ -315,7 +315,7 @@ npm install
 npm t
 
 # Run E2E tests (requires API keys in .env)
-cp .example.env .env
+cp .env.example .env
 npm run test:e2e
 
 # Build

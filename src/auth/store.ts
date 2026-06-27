@@ -1,4 +1,4 @@
-import { readFile, writeFile, mkdir, chmod } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, chmod, rename } from 'node:fs/promises';
 import { join } from 'node:path';
 import { homedir, hostname } from 'node:os';
 import { scryptSync, createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
@@ -8,9 +8,13 @@ const KEY_LENGTH = 32;
 const IV_LENGTH = 16;
 const PEPPER = 'litellmts-core@v1';
 
+let cachedKey: Buffer | undefined;
 function deriveKey(): Buffer {
+  // ponytail: scrypt is ~100ms; cache the key for the process lifetime.
+  if (cachedKey) return cachedKey;
   const seed = `${hostname()}-${homedir()}-${PEPPER}`;
-  return scryptSync(seed, 'credentials-key-salt', KEY_LENGTH);
+  cachedKey = scryptSync(seed, 'credentials-key-salt', KEY_LENGTH);
+  return cachedKey;
 }
 
 function encrypt(plaintext: string): string {
@@ -39,9 +43,10 @@ export function decrypt(payload: string): string {
 
 const STORE_DIR = join(homedir(), '.litellm');
 const STORE_PATH = join(STORE_DIR, 'auth.json');
+const STORE_TMP = join(STORE_DIR, 'auth.json.tmp');
 
 async function ensureDir(): Promise<void> {
-  await mkdir(STORE_DIR, { recursive: true });
+  await mkdir(STORE_DIR, { recursive: true, mode: 0o700 });
 }
 
 async function readStore(): Promise<Record<string, unknown>> {
@@ -57,11 +62,20 @@ async function readStore(): Promise<Record<string, unknown>> {
   }
 }
 
+const STORE_VERSION = 1;
+
+let writeLock: Promise<void> = Promise.resolve();
 async function writeStore(data: Record<string, unknown>): Promise<void> {
-  const plaintext = JSON.stringify(data);
-  const encrypted = encrypt(plaintext);
-  await writeFile(STORE_PATH, encrypted, 'utf-8');
-  await chmod(STORE_PATH, 0o600);
+  const run = writeLock.then(async () => {
+    const payload = { ...data, __version: STORE_VERSION };
+    const plaintext = JSON.stringify(payload);
+    const encrypted = encrypt(plaintext);
+    await writeFile(STORE_TMP, encrypted, 'utf-8');
+    await chmod(STORE_TMP, 0o600);
+    await rename(STORE_TMP, STORE_PATH);
+  });
+  writeLock = run.catch(() => undefined);
+  await run;
 }
 
 export async function getProviderCredentials<T>(
@@ -104,8 +118,9 @@ export async function getCopilotCredentials() {
       await setProviderCredentials('github-copilot', migrated);
       return migrated;
     }
-  } catch {
-    // ignore
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn(`[litellm] Copilot credential migration skipped: ${err instanceof Error ? err.message : String(err)}`);
   }
   return null;
 }
